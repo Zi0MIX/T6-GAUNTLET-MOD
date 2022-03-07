@@ -9,6 +9,7 @@
 #include maps/mp/zm_tomb_utility;
 
 #include maps/mp/zm_tomb_capture_zones;
+#include maps\mp\zombies\_zm_game_module;
 
 main()
 {
@@ -38,6 +39,12 @@ OnPlayerConnect()
             level thread CheckForGenerator(1);
         }
 
+        // Only use knife
+        if (level.round_number == 2)
+        {
+
+        }
+
         level waittill("start_of_round");
     }
 }
@@ -52,18 +59,28 @@ OnPlayerSpawned()
 	flag_wait( "initial_blackscreen_passed" );
 }
 
+GameFailed()
+//Function ends the game upon failure to complete gauntlet task
+{
+    maps\mp\zombies\_zm_game_module::freeze_players( 1 );
+    level notify("end_game");
+}
+
+
 CheckForGenerator(generator)
+// Function checks if generator is active (takes generator number)
 {
     generator_name = TranslateGeneratorNames(generator);
     level waittill("end_of_round");
     if (!level.zone_capture.zones[generator_name]ent_flag("player_controlled"))
     {
-        level notify("end_game");
+        GameFailed();
     }
     return;
 }
 
 TranslateGeneratorNames(generator_id)
+// Function translates generator numbers into in-game generator keys
 {
     if (generator_id == 1)
     {
