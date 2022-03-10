@@ -41,7 +41,7 @@ OnPlayerConnect()
     while (1)
     {
         // Activate generator 1
-        if (level.round_number <= 1)
+        if (level.round_number == 1)
         {
             level thread CheckForGenerator(1);
         }
@@ -226,7 +226,7 @@ DebugHud(debug)
 CheckForGenerator(generator)
 // Function checks if generator is active (takes generator number)
 {
-    level waittill("start_of_round");
+    // level waittill("start_of_round");
     self.generator_name = TranslateGeneratorNames(generator);
     level.conditions_met = false;
     self thread GauntletHud(1);
@@ -308,7 +308,7 @@ WatchStat(challenge, stat_1, stat_2)
 {
     self thread GauntletHud(challenge);
     level.conditions_met = true;
-    level.conditions_in_progress = true;
+    level.conditions_in_progress = false;
     level.murderweapontype = undefined;
     self thread WatchForTraps();
     self thread WatchForTank();                 // Fix that :(
