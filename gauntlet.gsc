@@ -15,7 +15,7 @@
 
 main()
 {
-	// replaceFunc(maps/mp/zombies/_zm::actor_killed_override, ::ActorKilledTracked);
+	replaceFunc(maps/mp/zombies/_zm::actor_killed_override, ::ActorKilledTracked);
     // replaceFunc(maps/mp/zombies/_zm_weapons::watchweaponusagezm, ::WatchWpnUsageLvlNotify);
 }
 
@@ -52,7 +52,7 @@ OnPlayerConnect()
             level thread WatchStat(2, "kills", "melee_kills");
         }
 
-        level waittill("start_of_round");
+        level waittill("start_of_round"); // Careful not to add this inside normal fucntions
     }
 }
 
@@ -111,6 +111,7 @@ EndGameWatcher()
 }
 
 ForbiddenWeaponWatcher()
+// Function will immidiately end the game if forbidden_weapon trigger is enabled
 {
     while (1)
     {
@@ -131,6 +132,7 @@ EndGame()
 }
 
 TimerHud()
+// Timer hud displayer throught the game
 {
     timer_hud = newHudElem();
 	timer_hud.alignx = "left";					
@@ -148,6 +150,7 @@ TimerHud()
 }
 
 GauntletHud(challenge)
+// Hud for printing challenge goals, function doesn't yet work properly
 {
     if (isdefined(gauntlet_hud))
     {
@@ -196,6 +199,7 @@ GauntletHud(challenge)
 }
 
 DebugHud(debug)
+// Hud for printing variables in debugging
 {
     if (debug)
     {
@@ -233,6 +237,7 @@ CheckForGenerator(generator)
 }
 
 GeneratorCondition()
+// Function will change boolean if defined generator is taken
 {
     current_round = level.round_number;
     while (current_round == level.round_number)
@@ -298,13 +303,17 @@ TranslateGeneratorNames(generator_id)
 //     }
 // }
 
-WatchStat(challenge, stat1, stat2)
+WatchStat(challenge, stat_1, stat_2)
+// Function turns on boolean in case of zombies being shot, trapped or tanked
 {
     self thread GauntletHud(challenge);
-    self thread WatchForTraps();
     level.conditions_met = true;
-    stat_1 = stat1;
-    stat_2 = stat2;
+    level.conditions_in_progress = true;
+    level.murderweapontype = undefined;
+    self thread WatchForTraps();
+    self thread WatchForTank();                 // Fix that :(
+    rnd = level.round_number;
+    // Grab stats on round start
     beg_stat1 = 0;
     beg_stat2 = 0;
     foreach (player in level.players)
@@ -315,41 +324,36 @@ WatchStat(challenge, stat1, stat2)
 
     beg_difference = (beg_stat1 - beg_stat2);
 
-    level.debug_1 = beg_stat1;
-    level.debug_2 = beg_difference;
+    // level.debug_1 = beg_stat1;
+    // level.debug_2 = beg_difference;
 
-    // self thread ControlTheDifference(beg_stat1, beg_stat2, beg_difference);
-}
-
-ControlTheDifference(stat_1, stat_2, difference)
-{
-    rnd = level.round_number;
-    kill_ctrl = 0;
-    knife_ctrl = 0;
+    // Watch stats midround
+    rnd_stat1 = beg_stat1;
+    rnd_stat2 = beg_stat2;
     while (level.round_number == rnd)
     {
         foreach (player in level.players)
         {
-            kill_ctrl += player.pers[stat_1];
-            knife_ctrl += player.pers[stat_2];
+            rnd_stat1 = player.pers[stat_1];
+            rnd_stat2 = player.pers[stat_2];
         }
 
-        get_difference = (kill_ctrl - knife_ctrl);
+        get_difference = (rnd_stat1 - rnd_stat2);
 
-        level.debug_1 = kill_ctrl;
-        level.debug_2 = knife_ctrl;
+        // level.debug_1 = get_difference;
+        // level.debug_2 = beg_difference;
 
-        if (get_difference != difference)
+        if (get_difference != beg_difference)
         {
-            // level.forbidden_weapon_used = true;
+            level.forbidden_weapon_used = true;
         }
         
         wait 0.05;
-        
     }
 }
 
 WatchForTraps()
+// Thread of kill watcher, will trigger boolean if zombie's killed by trap
 {
     trapkills = level.zombie_trap_killed_count;
     while (1)
@@ -362,6 +366,19 @@ WatchForTraps()
     }
     // level waittill_any("trap_kill", "vo_tank_flame_zombie");
     // level.forbidden_weapon_used = true;
+}
+
+WatchForTank()
+// Shit don't work atm
+{
+    while (1)
+    {
+        if (isdefined(level.murderweapontype) && level.murderweapontype == "MOD_BURNED") 
+        {
+            level.forbidden_weapon_used = true;
+        }
+        wait 0.05;
+    }
 }
 
 // WatchForShoot(challenge)
@@ -426,58 +443,58 @@ WatchForTraps()
 //     // level thread CountProperKills();
 // }
 
-// ActorKilledTracked(einflictor, attacker, idamage, smeansofdeath, sweapon, vdir, shitloc, psoffsettime)
-// {
-//     if ( game["state"] == "postgame" )
-//         return;
+ActorKilledTracked(einflictor, attacker, idamage, smeansofdeath, sweapon, vdir, shitloc, psoffsettime)
+{
+    if ( game["state"] == "postgame" )
+        return;
 
-//     if ( isai( attacker ) && isdefined( attacker.script_owner ) )
-//     {
-//         if ( attacker.script_owner.team != self.aiteam )
-//             attacker = attacker.script_owner;
-//     }
+    if ( isai( attacker ) && isdefined( attacker.script_owner ) )
+    {
+        if ( attacker.script_owner.team != self.aiteam )
+            attacker = attacker.script_owner;
+    }
 
-//     if ( attacker.classname == "script_vehicle" && isdefined( attacker.owner ) )
-//         attacker = attacker.owner;
+    if ( attacker.classname == "script_vehicle" && isdefined( attacker.owner ) )
+        attacker = attacker.owner;
 
-//     if ( isdefined( attacker ) && isplayer( attacker ) )
-//     {
-//         multiplier = 1;
-//         level.murderweapontype = smeansofdeath;     // Pass mod
-//         level.murderweapon = sweapon;               // Pass weapon
-//         level notify("zombie_killed");              // Push trigger
+    if ( isdefined( attacker ) && isplayer( attacker ) )
+    {
+        multiplier = 1;
+        level.murderweapontype = smeansofdeath;     // Pass mod
+        level.murderweapon = sweapon;               // Pass weapon
+        level notify("zombie_killed");              // Push trigger
 
-//         if ( is_headshot( sweapon, shitloc, smeansofdeath ) )
-//             multiplier = 1.5;
+        if ( is_headshot( sweapon, shitloc, smeansofdeath ) )
+            multiplier = 1.5;
 
-//         type = undefined;
+        type = undefined;
 
-//         if ( isdefined( self.animname ) )
-//         {
-//             switch ( self.animname )
-//             {
-//                 case "quad_zombie":
-//                     type = "quadkill";
-//                     break;
-//                 case "ape_zombie":
-//                     type = "apekill";
-//                     break;
-//                 case "zombie":
-//                     type = "zombiekill";
-//                     break;
-//                 case "zombie_dog":
-//                     type = "dogkill";
-//                     break;
-//             }
-//         }
-//     }
+        if ( isdefined( self.animname ) )
+        {
+            switch ( self.animname )
+            {
+                case "quad_zombie":
+                    type = "quadkill";
+                    break;
+                case "ape_zombie":
+                    type = "apekill";
+                    break;
+                case "zombie":
+                    type = "zombiekill";
+                    break;
+                case "zombie_dog":
+                    type = "dogkill";
+                    break;
+            }
+        }
+    }
 
-//     if ( isdefined( self.is_ziplining ) && self.is_ziplining )
-//         self.deathanim = undefined;
+    if ( isdefined( self.is_ziplining ) && self.is_ziplining )
+        self.deathanim = undefined;
 
-//     if ( isdefined( self.actor_killed_override ) )
-//         self [[ self.actor_killed_override ]]( einflictor, attacker, idamage, smeansofdeath, sweapon, vdir, shitloc, psoffsettime );
-// }
+    if ( isdefined( self.actor_killed_override ) )
+        self [[ self.actor_killed_override ]]( einflictor, attacker, idamage, smeansofdeath, sweapon, vdir, shitloc, psoffsettime );
+}
 
 // WatchWpnUsageLvlNotify()
 // {
