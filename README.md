@@ -32,3 +32,7 @@ Patch that emulates gauntlet gamemode from BO4 on BO2 Origins
 28. don't get any drops
 29. only kill zombies in mud
 30. you can only kill zombies using melee attacks 
+
+# Notes
+- Shield excluded from melee only, as it allows for staff abuse
+- Drone crashes the game on round 2
