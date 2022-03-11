@@ -54,7 +54,7 @@ OnPlayerConnect()
         // Only kill with melee (except for shield)
         else if (level.round_number == 2)
         {
-            level thread WatchPlayerStat(2, "kills", "melee_kills");
+            level thread WatchPlayerStats(2, "kills", "melee_kills");
         }
 
         // Stay still
@@ -63,12 +63,21 @@ OnPlayerConnect()
             level thread DisableMovement(3);
         }
 
+        // Have one perk at the end of the round
         else if (level.round_number == 4)
         {
             level thread WatchPerks(4, 1);
         }
 
+        // Pull at least one weapon from the box
+        else if (level.round_number == 5)
+        {
+            level thread WatchPlayerStat(5, "grabbed_from_magicbox");
+        }
+
         level waittill("start_of_round"); // Careful not to add this inside normal fucntions
+
+        wait 0.05;
     }
 }
 
@@ -77,7 +86,7 @@ OnPlayerSpawned()
     level endon( "game_ended" );
 	self endon( "disconnect" );
 
-    level.round_number = 3;
+    level.round_number = 5; // For debugging
 
 	self waittill( "spawned_player" );
 
@@ -255,11 +264,15 @@ GauntletHud(challenge)
     }
     else if (challenge == 3)
     {
-        gauntlet_hud settext("Stay still");
+        gauntlet_hud settext("Stand still");
     }
     else if (challenge == 4)
     {
-        gauntlet_hud settext("Own a perk at the end of the round.");
+        gauntlet_hud settext("Own a perk at the end of the round");
+    }
+    else if (challenge == 5)
+    {
+        gauntlet_hud settext("Pull a weapon from mystery box");
     }
 
 
@@ -409,48 +422,6 @@ GeneratorCondition()
             ConditionsInProgress(false);
         }
 
-        // if (!self.active_gen_1 && self.generator_id == 1)
-        // {
-        //     ConditionsMet(false);
-        //     ConditionsInProgress(false);
-        // }
-
-        // else if (!self.active_gen_2 && self.generator_id == 2)
-        // {
-        //     ConditionsMet(false);
-        //     ConditionsInProgress(false);
-        // }
-
-        // else if (!self.active_gen_3 && self.generator_id == 3)
-        // {
-        //     ConditionsMet(false);
-        //     ConditionsInProgress(false);
-        // }
-
-        // else if (!self.active_gen_4 && self.generator_id == 4)
-        // {
-        //     ConditionsMet(false);
-        //     ConditionsInProgress(false);
-        // }
-
-        // else if (!self.active_gen_5 && self.generator_id == 5)
-        // {
-        //     ConditionsMet(false);
-        //     ConditionsInProgress(false);
-        // }
-
-        // else if (!self.active_gen_6 && self.generator_id == 6)
-        // {
-        //     ConditionsMet(false);
-        //     ConditionsInProgress(false);
-        // }
-
-        // else if (!self.active_gen_1 && !self.active_gen_2 && !self.active_gen_3 && !self.active_gen_4 && !self.active_gen_5 && !self.active_gen_6 && self.generator_id == 0)
-        // {
-        //     ConditionsMet(false);
-        //     ConditionsInProgress(false);
-        // }
-
         if (flag("zone_capture_in_progress"))
         {
             ConditionsInProgress(true);
@@ -523,11 +494,86 @@ GeneratorWatcher()
     }
 }
 
-WatchPlayerStat(challenge, stat_1, stat_2)
+WatchPlayerStat(challenge, stat_1)
+// Function watches for a single provided stat (guns from box)
+{
+    self thread GauntletHud(challenge);
+    rnd = level.round_number;
+
+    // Grab stat on round start
+    beg_stat = 0;
+    beg_stat_array = array(0, 0, 0, 0, 0, 0, 0, 0);
+
+    i = 0;
+    foreach (player in level.players)
+    {
+        beg_stat_array[i] += player.pers[stat_1];
+        i++;
+    }
+
+    // Watch stats midround
+    rnd_stat = beg_stat;
+    rnd_stat_array = beg_stat_array;
+    did_hit_box = array(false, false, false, false, false, false, false, false);
+    proper_boxers = 0;
+    while (level.round_number == rnd)
+    {
+        proper_boxers = 0;
+
+        // Pull stat from each player into an array
+        i = 0;
+        foreach (player in level.players)
+        {
+            rnd_stat_array[i] = player.pers[stat_1];
+            i++;
+        }
+        
+        // Calculate if weapon was pulled from box
+        i = 0;
+        foreach (stat in rnd_stat_array)
+        {
+            if (stat > beg_stat_array[i])
+            {
+                did_hit_box[i] = true;
+            }
+        }
+
+        // Count players who completed the challenge
+        foreach (fact in did_hit_box)
+        {
+            if (fact)
+            {
+                proper_boxers++;
+            }
+        }
+
+        // Determine state of the challenge
+        if (proper_boxers == 0)
+        {
+            ConditionsMet(false);
+            ConditionsInProgress(false);            
+        }
+        else if (proper_boxers == level.players.size)
+        {
+            ConditionsMet(true);
+        }
+        else
+        {
+            ConditionsInProgress(true); 
+        }
+
+        wait 0.05;
+    }
+}
+
+WatchPlayerStats(challenge, stat_1, stat_2)
 // Function turns on boolean in case of zombies being shot, trapped or tanked
 {
     self thread GauntletHud(challenge);
-    ConditionsInProgress(true);
+    if (challenge == 2)
+    {
+        ConditionsInProgress(true);
+    }
     rnd = level.round_number;
 
     // Grab stats on round start
@@ -604,32 +650,29 @@ DisableMovement(challenge)
 WatchPerks(challenge, number_of_perks)
 // Function checks for the amount of perks per player at the end of the round.
 {
-    self.required_perks = number_of_perks;
-    self.current_perks = array(0, 0, 0, 0, 0, 0, 0, 0);
-    self.current_round = level.round_number;
-    self.got_perks_right = array(false, false, false, false, false, false, false, false);
-    self.proper_players = 0;
-    self.player_size = level.players.size;
+    level.proper_players = 0;
     self thread GauntletHud(challenge);
     self thread PerkWatcher(number_of_perks);
 
-    level.debug_1 = self.current_perks;
-    level.debug_2 = self.got_perks_right;
-
     level waittill ("end_of_round");
-    if (self.proper_players >= self.player_size)
+    if (level.proper_players == level.players.size)
     {
         ConditionsMet(true);
     }
 }
 
-PerkWatcher(number_of_perks)
+PerkWatcher(required_perks)
 // Function checks for the amount of perks during the round
 {
-    while (self.current_round == level.round_number)
+    current_perks = array(0, 0, 0, 0, 0, 0, 0, 0);
+    got_perks_right = array(false, false, false, false, false, false, false, false);
+    current_round = level.round_number;
+    while (current_round == level.round_number)
     {
+        level.proper_players = 0;
+
         // Reset current perk array
-        foreach (perk in self.current_perks)
+        foreach (perk in current_perks)
         {
             perk = 0;
         }
@@ -638,43 +681,45 @@ PerkWatcher(number_of_perks)
         i = 0;
         foreach (player in level.players)
         {
-            self.current_perks[i] = player.num_perks;
+            current_perks[i] = player.num_perks;
             i++;
         }
 
         // Check if each player has right amount of perks and put results into an array
         i = 0;
-        foreach (perk in self.current_perks)
+        foreach (perk in current_perks)
         {
-            if (perk < self.required_perks && i < self.player_size)
+            if (perk < required_perks && i < level.players.size)
             {
-                self.got_perks_right[i] = false; // I think problem is in this if statement
+                got_perks_right[i] = false; // I think problem is in this if statement
+
             }
             else
             {
-                self.got_perks_right[i] = true;
+                got_perks_right[i] = true;
             }
             i++;
         }
 
         // Count players who have right amount of perks
-        foreach (got_right in self.got_perks_right)
+        foreach (got_right in got_perks_right)
         {
             if (got_right)
             {
-                self.proper_players++;
+                level.proper_players++;
             }
         }
+        level.proper_players -= (8 - level.players.size);
 
         // Compare against lobby size (up to 8 players for pluto)
-        if (self.proper_players == (8 - self.player_size))
+        if (level.proper_players > 0)
         {
-            ConditionsMet(false);
-            ConditionsInProgress(false);
+            ConditionsInProgress(true);
         }
         else
         {
-            ConditionsInProgress(true);
+            ConditionsMet(false);
+            ConditionsInProgress(false);
         }
 
         wait 0.05;
