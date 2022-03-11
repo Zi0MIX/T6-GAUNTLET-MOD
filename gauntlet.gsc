@@ -26,7 +26,7 @@ main()
 init()
 {
 	level thread OnPlayerConnect();
-    flag_init("games_gone");
+    // flag_init("games_gone");
 }
 
 OnPlayerConnect()
@@ -41,26 +41,31 @@ OnPlayerConnect()
     flag_wait("initial_blackscreen_passed");
     level thread EndGameWatcher();
     level thread TimerHud();
-    // level thread DebugHud();
+    level thread DebugHud();
 
     while (1)
     {
         // Activate generator 1
         if (level.round_number == 1)
         {
-            level thread CheckForGenerator(1);
+            level thread CheckForGenerator(1, 1);
         }
 
         // Only kill with melee (except for shield)
-        if (level.round_number == 2)
+        else if (level.round_number == 2)
         {
             level thread WatchPlayerStat(2, "kills", "melee_kills");
         }
 
         // Stay still
-        if (level.round_number == 3)
+        else if (level.round_number == 3)
         {
             level thread DisableMovement(3);
+        }
+
+        else if (level.round_number == 4)
+        {
+            level thread WatchPerks(4, 1);
         }
 
         level waittill("start_of_round"); // Careful not to add this inside normal fucntions
@@ -71,6 +76,8 @@ OnPlayerSpawned()
 {
     level endon( "game_ended" );
 	self endon( "disconnect" );
+
+    level.round_number = 3;
 
 	self waittill( "spawned_player" );
 
@@ -92,6 +99,12 @@ SetDvars()
         level.murderweapon = undefined;  
         level.zombie_killed = 0;
         level.gauntlet_kills = 0;
+        level.active_gen_1 = false;
+        level.active_gen_2 = false;
+        level.active_gen_3 = false;
+        level.active_gen_4 = false;
+        level.active_gen_5 = false;
+        level.active_gen_6 = false;
 
         level.debug_1 = 0;
         level.debug_2 = 0;
@@ -159,7 +172,7 @@ ForbiddenWeaponWatcher()
 EndGame()
 // Function ends the game immidiately
 {
-    flag_set("games_gone");
+    // flag_set("games_gone");
     ConditionsMet(false);
     ConditionsInProgress(false);
     wait 0.1;
@@ -168,6 +181,7 @@ EndGame()
 }
 
 ConditionsInProgress(bool)
+// Function changes the state of conditions_in_progress boolean, as well as conditions_met if necessary
 {
     level.conditions_in_progress = bool;
     if (bool)
@@ -178,6 +192,7 @@ ConditionsInProgress(bool)
 }
 
 ConditionsMet(bool)
+// Function changes the state of conditions_met boolean, as well as conditions_in_progress if necessary
 {
     level.conditions_met = bool;
     if (bool)
@@ -239,19 +254,26 @@ GauntletHud(challenge)
         gauntlet_hud settext("Kill only with melee attacks");
     }
     else if (challenge == 3)
+    {
         gauntlet_hud settext("Stay still");
+    }
+    else if (challenge == 4)
+    {
+        gauntlet_hud settext("Own a perk at the end of the round.");
+    }
+
 
     while (level.round_number == challenge)
     {
-        if (level.conditions_in_progress && !flag("games_gone"))
+        if (level.conditions_in_progress)
         {
             gauntlet_hud.color = (0.8, 0.8, 0);
         }
-        else if (level.conditions_met && !flag("games_gone"))
+        else if (level.conditions_met)
         {          
             gauntlet_hud.color = (0, 0.8, 0);
         }
-        else if (!level.conditions_met && !level.conditions_in_progress || flag("games_gone"))
+        else if (!level.conditions_met && !level.conditions_in_progress)
         {
             gauntlet_hud.color = (0.8, 0, 0);
         }
@@ -263,14 +285,26 @@ GauntletHud(challenge)
         wait 0.05;
     }
 
-    if (level.conditions_met == false) {
-        gauntlet_hud.color = (0.8, 0, 0);
-    }
+    wait 0.1;
+    gauntlet_hud.color = GauntletHudAfteraction();
 
-    wait 5;
+    wait 4;
     gauntlet_hud fadeovertime(1.25);
     gauntlet_hud.alpha = 0;
     wait 2;
+}
+
+GauntletHudAfteraction()
+// Function changes the color of challenge hud after the round is over
+{
+    if (level.conditions_met)
+    {
+        return (0, 0.8, 0);
+    }
+    else
+    {
+        return (0.8, 0, 0);
+    }
 }
 
 DebugHud(debug)
@@ -298,67 +332,194 @@ DebugHud(debug)
     }
 }
 
-CheckForGenerator(generator)
-// Function checks if generator is active (takes generator number)
+CheckForGenerator(gen_id, rnd_override)
+// Master function for checking generators. Pass 0 as gen_id to verify all gens
 {
     level endon("end_of_round");
-    self.generator_name = TranslateGeneratorNames(generator);
+    // self.generator_name = TranslateGeneratorNames(generator);
+    self.current_round = level.round_number;
+    if (isdefined(rnd_override))
+    {
+        self.current_round = rnd_override;
+    }
+    self.generator_id = gen_id;
+
     self thread GauntletHud(1);
     self thread GeneratorCondition();
+    self thread GeneratorWatcher();
 }
 
 GeneratorCondition()
 // Function will change boolean if defined generator is taken
 {
-    current_round = level.round_number;
-    while (current_round == level.round_number)
+    while (self.current_round == level.round_number)
     {
-        if (level.zone_capture.zones[self.generator_name]ent_flag("player_controlled"))
+        if (level.active_gen_1 && self.generator_id == 1)
         {
             ConditionsMet(true);
         }
+
+        else if (level.active_gen_2 && self.generator_id == 2)
+        {
+            ConditionsMet(true);
+        }
+
+        else if (level.active_gen_3 && self.generator_id == 3)
+        {
+            ConditionsMet(true);
+        }
+
+        else if (level.active_gen_4 && self.generator_id == 4)
+        {
+            ConditionsMet(true);
+        }
+
+        else if (level.active_gen_5 && self.generator_id == 5)
+        {
+            ConditionsMet(true);
+        }
+
+        else if (level.active_gen_6 && self.generator_id == 6)
+        {
+            ConditionsMet(true);
+        }
+
+        else if (self.generator_id == 0)
+        {
+            if (level.active_gen_1 && level.active_gen_2 && level.active_gen_3 && level.active_gen_4 && level.active_gen_5 && level.active_gen_6)
+            {
+                ConditionsMet(true);
+            }
+
+            else if (level.active_gen_1 || level.active_gen_2 || level.active_gen_3 || level.active_gen_4 || level.active_gen_5 || level.active_gen_6)
+            {
+                ConditionsInProgress(true);
+            }
+
+            else
+            {
+                ConditionsMet(false);
+                ConditionsInProgress(false);
+            }
+        }
+
+        else
+        {
+            ConditionsMet(false);
+            ConditionsInProgress(false);
+        }
+
+        // if (!self.active_gen_1 && self.generator_id == 1)
+        // {
+        //     ConditionsMet(false);
+        //     ConditionsInProgress(false);
+        // }
+
+        // else if (!self.active_gen_2 && self.generator_id == 2)
+        // {
+        //     ConditionsMet(false);
+        //     ConditionsInProgress(false);
+        // }
+
+        // else if (!self.active_gen_3 && self.generator_id == 3)
+        // {
+        //     ConditionsMet(false);
+        //     ConditionsInProgress(false);
+        // }
+
+        // else if (!self.active_gen_4 && self.generator_id == 4)
+        // {
+        //     ConditionsMet(false);
+        //     ConditionsInProgress(false);
+        // }
+
+        // else if (!self.active_gen_5 && self.generator_id == 5)
+        // {
+        //     ConditionsMet(false);
+        //     ConditionsInProgress(false);
+        // }
+
+        // else if (!self.active_gen_6 && self.generator_id == 6)
+        // {
+        //     ConditionsMet(false);
+        //     ConditionsInProgress(false);
+        // }
+
+        // else if (!self.active_gen_1 && !self.active_gen_2 && !self.active_gen_3 && !self.active_gen_4 && !self.active_gen_5 && !self.active_gen_6 && self.generator_id == 0)
+        // {
+        //     ConditionsMet(false);
+        //     ConditionsInProgress(false);
+        // }
 
         if (flag("zone_capture_in_progress"))
         {
             ConditionsInProgress(true);
         }
 
-        if (!level.zone_capture.zones[self.generator_name]ent_flag("player_controlled") && !flag("zone_capture_in_progress"))
-        {
-            ConditionsMet(false);
-            ConditionsInProgress(false);
-        }
-
         wait 0.05;
     }
 }
 
-TranslateGeneratorNames(generator_id)
-// Function translates generator numbers into in-game generator keys
+GeneratorWatcher()
+// Function watches for current state of gens and changing booleans accordingly
 {
-    if (generator_id == 1)
+    while (self.current_round == level.round_number)
     {
-        return "generator_start_bunker";
-    }
-    else if (generator_id == 2)
-    {
-        return "generator_tank_trench";
-    }
-    else if (generator_id == 3)
-    {
-        return "generator_mid_trench";
-    }
-    else if (generator_id == 4)
-    {
-        return "generator_nml_right";
-    }
-    else if (generator_id == 5)
-    {
-        return "generator_nml_left";
-    }
-    else if (generator_id == 6)
-    {
-        return "generator_church";
+        if (level.zone_capture.zones["generator_start_bunker"]ent_flag("player_controlled"))
+        {
+            level.active_gen_1 = true;
+        }
+        else
+        {
+            level.active_gen_1 = false;
+        }
+
+        if (level.zone_capture.zones["generator_tank_trench"]ent_flag("player_controlled"))
+        {
+            level.active_gen_2 = true;
+        }
+        else
+        {
+            level.active_gen_2 = false;
+        }
+
+        if (level.zone_capture.zones["generator_mid_trench"]ent_flag("player_controlled"))
+        {
+            level.active_gen_3 = true;
+        }
+        else
+        {
+            level.active_gen_3 = false;
+        }
+
+        if (level.zone_capture.zones["generator_nml_right"]ent_flag("player_controlled"))
+        {
+            level.active_gen_4 = true;
+        }
+        else
+        {
+            level.active_gen_4 = false;
+        }
+
+        if (level.zone_capture.zones["generator_nml_left"]ent_flag("player_controlled"))
+        {
+            level.active_gen_5 = true;
+        }
+        else
+        {
+            level.active_gen_5 = false;
+        }
+
+        if (level.zone_capture.zones["generator_church"]ent_flag("player_controlled"))
+        {
+            level.active_gen_6 = true;
+        }
+        else
+        {
+            level.active_gen_6 = false;
+        }
+
+        wait 0.05;
     }
 }
 
@@ -437,6 +598,86 @@ DisableMovement(challenge)
     {
         player setmovespeedscale(1);
         player allowjump(1);
+    }
+}
+
+WatchPerks(challenge, number_of_perks)
+// Function checks for the amount of perks per player at the end of the round.
+{
+    self.required_perks = number_of_perks;
+    self.current_perks = array(0, 0, 0, 0, 0, 0, 0, 0);
+    self.current_round = level.round_number;
+    self.got_perks_right = array(false, false, false, false, false, false, false, false);
+    self.proper_players = 0;
+    self.player_size = level.players.size;
+    self thread GauntletHud(challenge);
+    self thread PerkWatcher(number_of_perks);
+
+    level.debug_1 = self.current_perks;
+    level.debug_2 = self.got_perks_right;
+
+    level waittill ("end_of_round");
+    if (self.proper_players >= self.player_size)
+    {
+        ConditionsMet(true);
+    }
+}
+
+PerkWatcher(number_of_perks)
+// Function checks for the amount of perks during the round
+{
+    while (self.current_round == level.round_number)
+    {
+        // Reset current perk array
+        foreach (perk in self.current_perks)
+        {
+            perk = 0;
+        }
+
+        // Get amount of perks from each player into the array
+        i = 0;
+        foreach (player in level.players)
+        {
+            self.current_perks[i] = player.num_perks;
+            i++;
+        }
+
+        // Check if each player has right amount of perks and put results into an array
+        i = 0;
+        foreach (perk in self.current_perks)
+        {
+            if (perk < self.required_perks && i < self.player_size)
+            {
+                self.got_perks_right[i] = false; // I think problem is in this if statement
+            }
+            else
+            {
+                self.got_perks_right[i] = true;
+            }
+            i++;
+        }
+
+        // Count players who have right amount of perks
+        foreach (got_right in self.got_perks_right)
+        {
+            if (got_right)
+            {
+                self.proper_players++;
+            }
+        }
+
+        // Compare against lobby size (up to 8 players for pluto)
+        if (self.proper_players == (8 - self.player_size))
+        {
+            ConditionsMet(false);
+            ConditionsInProgress(false);
+        }
+        else
+        {
+            ConditionsInProgress(true);
+        }
+
+        wait 0.05;
     }
 }
 

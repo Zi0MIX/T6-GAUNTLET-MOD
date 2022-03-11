@@ -123,3 +123,32 @@ Countdown(ticks, inveral)
     }
     break;
 }
+
+TranslateGeneratorNames(generator_id)
+// Function translates generator numbers into in-game generator keys
+{
+    if (generator_id == 1)
+    {
+        return "generator_start_bunker";
+    }
+    else if (generator_id == 2)
+    {
+        return "generator_tank_trench";
+    }
+    else if (generator_id == 3)
+    {
+        return "generator_mid_trench";
+    }
+    else if (generator_id == 4)
+    {
+        return "generator_nml_right";
+    }
+    else if (generator_id == 5)
+    {
+        return "generator_nml_left";
+    }
+    else if (generator_id == 6)
+    {
+        return "generator_church";
+    }
+}
