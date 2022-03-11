@@ -262,6 +262,11 @@ GauntletHud(challenge)
 
         wait 0.05;
     }
+
+    if (level.conditions_met == false) {
+        gauntlet_hud.color = (0.8, 0, 0);
+    }
+
     wait 5;
     gauntlet_hud fadeovertime(1.25);
     gauntlet_hud.alpha = 0;
