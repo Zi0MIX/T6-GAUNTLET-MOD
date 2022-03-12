@@ -88,6 +88,12 @@ OnPlayerConnect()
             level thread WatchPlayerStat(7, "melee_kills");
         }
 
+        // Have one jug by the end of the round
+        if (level.round_number == 8)
+        {
+            level thread WatchPerks(8, 1);
+        }
+
         level waittill("start_of_round"); // Careful not to add this inside normal fucntions
 
         wait 0.05;
@@ -99,7 +105,7 @@ OnPlayerSpawned()
     level endon( "game_ended" );
 	self endon( "disconnect" );
 
-    level.round_number = 7; // For debugging
+    level.round_number = 8; // For debugging
 
 	self waittill( "spawned_player" );
 
@@ -134,6 +140,15 @@ SetDvars()
         level.active_gen_4 = false;
         level.active_gen_5 = false;
         level.active_gen_6 = false;
+        level.players_jug = 0;
+        level.players_quick = 0;
+        level.players_doubletap = 0;
+        level.players_speed = 0;
+        level.players_phd = 0;
+        level.players_deadshot = 0;
+        level.players_stam = 0;
+        level.players_cherry = 0;
+        level.players_mulekick = 0;
 
         level.debug_1 = 0;
         level.debug_2 = 0;
@@ -283,7 +298,7 @@ GauntletHud(challenge)
     gauntlet_hud settext("Origins gauntlet");
     if (challenge == 1)
     {
-        gauntlet_hud settext("Turn on Generator 1");
+        gauntlet_hud settext("Turn on Generator 1 by the end of the round");
     }
     else if (challenge == 2)
     {
@@ -322,6 +337,10 @@ GauntletHud(challenge)
         {
             gauntlet_hud settext("Kill 12 zombies total with melee attacks");
         }
+    }
+    else if (challenge == 8)
+    {
+        gauntlet_hud settext("Own Jugger-Nog by the end of the round");
     }
 
 
@@ -409,7 +428,7 @@ CheckForGenerator(gen_id, rnd_override)
     }
     self.generator_id = gen_id;
 
-    self thread GauntletHud(1);
+    self thread GauntletHud(self.current_round);
     self thread GeneratorCondition();
     self thread GeneratorWatcher();
 }
@@ -781,10 +800,22 @@ WatchPerks(challenge, number_of_perks)
 
     level.proper_players = 0;
     self thread GauntletHud(challenge);
-    self thread PerkWatcher(number_of_perks);
-
+    if (challenge == 4)
+    {
+        self thread PerkWatcher(number_of_perks);
+    }
+    else if (challenge == 8)
+    {
+        self thread EachPerkWatcher();
+        self thread WatchPerkMidRound("jug");
+    }
+    
     level waittill ("end_of_round");
-    if (level.proper_players == level.players.size)
+    if (challenge == 4 && level.proper_players == level.players.size)
+    {
+        ConditionsMet(true);
+    }
+    else if (challenge == 8 && level.players_jug >= number_of_perks)
     {
         ConditionsMet(true);
     }
@@ -849,6 +880,163 @@ PerkWatcher(required_perks)
         {
             ConditionsMet(false);
             ConditionsInProgress(false);
+        }
+
+        wait 0.05;
+    }
+}
+
+EachPerkWatcher()
+// Function checks how many of each perks players own 
+{
+    current_round = level.round_number;
+    while (current_round == level.round_number)
+    {
+        hasjug = 0;
+        hasquick = 0;
+        hasdoubletap = 0;
+        hasspeed = 0;
+        hasphd = 0;
+        hasdeadshot = 0;
+        hasstam = 0;
+        hascherry = 0;
+        hasmule = 0;
+        foreach (player in level.players)
+        {
+            if (player hasperk( "specialty_armorvest"))
+            {
+                hasjug++;
+            }
+            level.players_jug = hasjug;
+
+            if (player hasperk( "specialty_quickrevive"))
+            {
+                hasquick++;
+            }
+            level.players_quick = hasquick;
+
+            if (player hasperk( "specialty_rof"))
+            {
+                hasdoubletap++;
+            }
+            level.players_doubletap = hasdoubletap;
+
+            if (player hasperk( "specialty_fastreload"))
+            {
+                hasspeed++;
+            }
+            level.players_speed = hasspeed;
+
+            if (player hasperk( "specialty_flakjacket"))
+            {
+                hasphd++;
+            }
+            level.players_phd = hasphd;
+
+            if (player hasperk( "specialty_deadshot"))
+            {
+                hasdeadshot++;
+            }
+            level.players_deadshot = hasdeadshot;
+
+            if (player hasperk( "specialty_longersprint"))
+            {
+                hasstam++;
+            }
+            level.players_stam = hasstam;
+
+            if (player hasperk( "specialty_grenadepulldeath"))
+            {
+                hascherry++;
+            }
+            level.players_cherry = hascherry;
+
+            if (player hasperk( "specialty_additionalprimaryweapon"))
+            {
+                hasmule++;
+            }
+            level.players_mulekick = hasmule;
+        }
+        wait 0.05;
+    }
+}
+
+WatchPerkMidRound(perk)
+// Function checks if players have more than 0 of specified perk and changes condition to in progress
+{
+    current_round = level.round_number;
+    while (current_round == level.round_number)
+    {
+        if (perk == "jug")
+        {
+            if (level.players_jug > 0)
+            {
+                ConditionsInProgress(true);
+            }
+        }
+
+        else if (perk == "quick")
+        {
+            if (level.players_quick > 0)
+            {
+                ConditionsInProgress(true);
+            }
+        }
+
+        else if (perk == "doubletap")
+        {
+            if (level.players_doubletap > 0)
+            {
+                ConditionsInProgress(true);
+            }
+        }
+
+        else if (perk == "speed")
+        {
+            if (level.players_speed > 0)
+            {
+                ConditionsInProgress(true);
+            }
+        }
+
+        else if (perk == "phd")
+        {
+            if (level.players_phd > 0)
+            {
+                ConditionsInProgress(true);
+            }
+        }
+
+        else if (perk == "deadshot")
+        {
+            if (level.players_deadshot > 0)
+            {
+                ConditionsInProgress(true);
+            }
+        }
+
+        else if (perk == "stam")
+        {
+            if (level.players_stam > 0)
+            {
+                ConditionsInProgress(true);
+            }
+        }
+
+        else if (perk == "cherry")
+        {
+            if (level.players_cherry > 0)
+            {
+                ConditionsInProgress(true);
+            }
+        }
+
+        else if (perk == "mulekick")
+        {
+            if (level.players_mulekick > 0)
+            {
+                ConditionsInProgress(true);
+            }
         }
 
         wait 0.05;
