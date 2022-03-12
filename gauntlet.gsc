@@ -82,6 +82,12 @@ OnPlayerConnect()
             level thread WatchPlayerStat(6, "tomb_dig");
         }
 
+        // Dig 3 piles (1 for each on coop)
+        else if (level.round_number == 7)
+        {
+            level thread WatchPlayerStat(7, "melee_kills");
+        }
+
         level waittill("start_of_round"); // Careful not to add this inside normal fucntions
 
         wait 0.05;
@@ -93,13 +99,13 @@ OnPlayerSpawned()
     level endon( "game_ended" );
 	self endon( "disconnect" );
 
-    level.round_number = 6; // For debugging
+    level.round_number = 7; // For debugging
 
 	self waittill( "spawned_player" );
 
     foreach (player in level.players)
     {
-        player.score = 500000;
+        player.score = 500000; // For debugging
     }
 
 	flag_wait( "initial_blackscreen_passed" );
@@ -304,6 +310,17 @@ GauntletHud(challenge)
         else
         {
             gauntlet_hud settext("Dig a pile");
+        }
+    }
+    else if (challenge == 7)
+    {
+        if (level.players.size == 1)
+        {
+            gauntlet_hud settext("Kill 6 zombies with melee attacks");
+        }
+        else
+        {
+            gauntlet_hud settext("Kill 12 zombies total with melee attacks");
         }
     }
 
@@ -555,9 +572,11 @@ WatchPlayerStat(challenge, stat_1)
     did_hit_box = array(0, 0, 0, 0, 0, 0, 0, 0);
     proper_boxers = 0;
     piles_in_progress = false;
+    temp_melees = 0;
     while (level.round_number == rnd)
     {
         proper_boxers = 0;
+        temp_melees = 0;
 
         // Pull stat from each player into an array
         i = 0;
@@ -594,7 +613,46 @@ WatchPlayerStat(challenge, stat_1)
                     }
                 }
             }
+            else if (challenge == 7 && level.players.size == 1)
+            {
+                if (stat > beg_stat_array[i] && stat < beg_stat_array[i] + 5)
+                {
+                    did_hit_box[i] = 2;
+                }
+                else if (stat > beg_stat_array[i] + 5)
+                {
+                    did_hit_box[i] = 1;
+                }
+            }
         }
+
+        if (challenge == 7 && level.players.size > 1)
+        {
+            i = 0;
+            foreach (stat in rnd_stat_array)
+            {
+                temp_melees += (stat - beg_stat_array[i]);
+                i++;
+            }
+
+            if (temp_melees > 0 && temp_melees < 12)
+            {
+                i = 0;
+                foreach (player in level.players)
+                {
+                    did_hit_box[i] = 2;
+                }
+            }
+            else if (temp_melees >= 12)
+            {
+                i = 0;
+                foreach (player in level.players)
+                {
+                    did_hit_box[i] = 1;
+                }
+            }
+        }
+
 
         // Count players who completed the challenge
         foreach (fact in did_hit_box)
