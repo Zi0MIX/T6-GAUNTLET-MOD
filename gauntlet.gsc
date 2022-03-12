@@ -39,6 +39,7 @@ OnPlayerConnect()
     level thread SetDvars();
 
     flag_wait("initial_blackscreen_passed");
+
     level thread EndGameWatcher();
     level thread TimerHud();
     level thread DebugHud();
@@ -75,6 +76,12 @@ OnPlayerConnect()
             level thread WatchPlayerStat(5, "grabbed_from_magicbox");
         }
 
+        // Dig 3 piles (1 for each on coop)
+        else if (level.round_number == 6)
+        {
+            level thread WatchPlayerStat(6, "tomb_dig");
+        }
+
         level waittill("start_of_round"); // Careful not to add this inside normal fucntions
 
         wait 0.05;
@@ -86,19 +93,26 @@ OnPlayerSpawned()
     level endon( "game_ended" );
 	self endon( "disconnect" );
 
-    level.round_number = 5; // For debugging
+    level.round_number = 6; // For debugging
 
 	self waittill( "spawned_player" );
+
+    foreach (player in level.players)
+    {
+        player.score = 500000;
+    }
 
 	flag_wait( "initial_blackscreen_passed" );
 }
 
 SetDvars()
-//Function sets and holds level dvars / has to be level thread?
+//Function sets and holds level dvars
 {
+    level endon( "game_ended" );
+    
     level.conditions_met = false;
     level.conditions_in_progress = false;
-    // self thread LevelDvarsWatcher();
+    self thread LevelDvarsWatcher();
     while (1)
     {
         level.conditions_met = false;
@@ -126,6 +140,8 @@ SetDvars()
 LevelDvarsWatcher()
 // Function switches level dvars depending on other level dvars so it doesn't have to be done manually, also to prevent hud color fuckery
 {
+    level endon( "game_ended" );
+
     while (1)
     {
         if (level.condition_met)
@@ -146,6 +162,9 @@ LevelDvarsWatcher()
 EndGameWatcher()
 //Function operates when level is suppose to end
 {
+    level endon( "game_ended" );
+
+
     self thread ForbiddenWeaponWatcher();
     level waittill ("start_of_round");
     while (1)
@@ -168,6 +187,8 @@ EndGameWatcher()
 ForbiddenWeaponWatcher()
 // Function will immidiately end the game if forbidden_weapon trigger is enabled
 {
+    level endon( "game_ended" );
+	self endon( "disconnect" );
     while (1)
     {
         if (level.forbidden_weapon_used)
@@ -240,7 +261,7 @@ GauntletHud(challenge)
 
     if (isdefined(gauntlet_hud))
     {
-        gauntlet_hud destroy();
+        gauntlet_hud destroy_hud();
     }
     gauntlet_hud = newHudElem();
     gauntlet_hud.alignx = "right";
@@ -274,6 +295,17 @@ GauntletHud(challenge)
     {
         gauntlet_hud settext("Pull a weapon from mystery box");
     }
+    else if (challenge == 6)
+    {
+        if (level.players.size == 1)
+        {
+            gauntlet_hud settext("Dig 3 piles");
+        }
+        else
+        {
+            gauntlet_hud settext("Dig a pile");
+        }
+    }
 
 
     while (level.round_number == challenge)
@@ -305,6 +337,8 @@ GauntletHud(challenge)
     gauntlet_hud fadeovertime(1.25);
     gauntlet_hud.alpha = 0;
     wait 2;
+
+    // gauntlet_hud destroy_hud();
 }
 
 GauntletHudAfteraction()
@@ -348,8 +382,9 @@ DebugHud(debug)
 CheckForGenerator(gen_id, rnd_override)
 // Master function for checking generators. Pass 0 as gen_id to verify all gens
 {
-    level endon("end_of_round");
-    // self.generator_name = TranslateGeneratorNames(generator);
+    level endon("end_game");
+    level endon("start_of_round");
+
     self.current_round = level.round_number;
     if (isdefined(rnd_override))
     {
@@ -497,6 +532,9 @@ GeneratorWatcher()
 WatchPlayerStat(challenge, stat_1)
 // Function watches for a single provided stat (guns from box)
 {
+    level endon("end_game");
+    level endon("start_of_round");
+
     self thread GauntletHud(challenge);
     rnd = level.round_number;
 
@@ -514,8 +552,9 @@ WatchPlayerStat(challenge, stat_1)
     // Watch stats midround
     rnd_stat = beg_stat;
     rnd_stat_array = beg_stat_array;
-    did_hit_box = array(false, false, false, false, false, false, false, false);
+    did_hit_box = array(0, 0, 0, 0, 0, 0, 0, 0);
     proper_boxers = 0;
+    piles_in_progress = false;
     while (level.round_number == rnd)
     {
         proper_boxers = 0;
@@ -532,23 +571,46 @@ WatchPlayerStat(challenge, stat_1)
         i = 0;
         foreach (stat in rnd_stat_array)
         {
-            if (stat > beg_stat_array[i])
+            if (challenge == 5)
             {
-                did_hit_box[i] = true;
+                if (stat > beg_stat_array[i])
+                {
+                    did_hit_box[i] = 1;
+                }
+            }
+            else if (challenge == 6)
+            {
+                if (stat > beg_stat_array[i] && level.players.size > 1)
+                {
+                    did_hit_box[i] = 1;
+                }
+                else if (stat > beg_stat_array[i] && level.players.size == 1)
+                {
+                    did_hit_box[i] = 2;
+
+                    if (stat > beg_stat_array[i] + 2)
+                    {
+                        did_hit_box[i] = 1;
+                    }
+                }
             }
         }
 
         // Count players who completed the challenge
         foreach (fact in did_hit_box)
         {
-            if (fact)
+            if (fact == 1)
             {
                 proper_boxers++;
+            }
+            else if (fact == 2)
+            {
+                piles_in_progress = true;
             }
         }
 
         // Determine state of the challenge
-        if (proper_boxers == 0)
+        if (proper_boxers == 0 && !piles_in_progress)
         {
             ConditionsMet(false);
             ConditionsInProgress(false);            
@@ -569,6 +631,9 @@ WatchPlayerStat(challenge, stat_1)
 WatchPlayerStats(challenge, stat_1, stat_2)
 // Function turns on boolean in case of zombies being shot, trapped or tanked
 {
+    level endon("end_game");
+    level endon("start_of_round");
+
     self thread GauntletHud(challenge);
     if (challenge == 2)
     {
@@ -629,6 +694,9 @@ WatchPlayerStats(challenge, stat_1, stat_2)
 DisableMovement(challenge)
 // Function disable walking and jumping ability until the end of the round 
 {
+    level endon("end_game");
+    level endon("start_of_round");
+
     ConditionsInProgress(true);
 
     self thread GauntletHud(challenge);
@@ -650,6 +718,9 @@ DisableMovement(challenge)
 WatchPerks(challenge, number_of_perks)
 // Function checks for the amount of perks per player at the end of the round.
 {
+    level endon("end_game");
+    level endon("start_of_round");
+
     level.proper_players = 0;
     self thread GauntletHud(challenge);
     self thread PerkWatcher(number_of_perks);
@@ -725,147 +796,3 @@ PerkWatcher(required_perks)
         wait 0.05;
     }
 }
-
-// ActorKilledTracked(einflictor, attacker, idamage, smeansofdeath, sweapon, vdir, shitloc, psoffsettime)
-// {
-//     if ( game["state"] == "postgame" )
-//         return;
-
-//     if ( isai( attacker ) && isdefined( attacker.script_owner ) )
-//     {
-//         if ( attacker.script_owner.team != self.aiteam )
-//             attacker = attacker.script_owner;
-//     }
-
-//     if ( attacker.classname == "script_vehicle" && isdefined( attacker.owner ) )
-//         attacker = attacker.owner;
-
-//     if ( isdefined( attacker ) && isplayer( attacker ) )
-//     {
-//         multiplier = 1;
-//         level.murderweapontype = smeansofdeath;     // Pass mod
-//         level.murderweapon = sweapon;               // Pass weapon
-//         level notify("zombie_killed");              // Push trigger
-
-//         if ( is_headshot( sweapon, shitloc, smeansofdeath ) )
-//             multiplier = 1.5;
-
-//         type = undefined;
-
-//         if ( isdefined( self.animname ) )
-//         {
-//             switch ( self.animname )
-//             {
-//                 case "quad_zombie":
-//                     type = "quadkill";
-//                     break;
-//                 case "ape_zombie":
-//                     type = "apekill";
-//                     break;
-//                 case "zombie":
-//                     type = "zombiekill";
-//                     break;
-//                 case "zombie_dog":
-//                     type = "dogkill";
-//                     break;
-//             }
-//         }
-//     }
-
-//     if ( isdefined( self.is_ziplining ) && self.is_ziplining )
-//         self.deathanim = undefined;
-
-//     if ( isdefined( self.actor_killed_override ) )
-//         self [[ self.actor_killed_override ]]( einflictor, attacker, idamage, smeansofdeath, sweapon, vdir, shitloc, psoffsettime );
-// }
-
-// DoDamageNetworkSafe( e_attacker, n_amount, str_weapon, str_mod )
-// {
-// 	if ( isDefined( self.is_mechz ) && self.is_mechz )
-// 	{
-// 		self dodamage( n_amount, self.origin, e_attacker, e_attacker, "none", str_mod, 0, str_weapon );
-// 	}
-// 	else
-// 	{
-// 		if ( n_amount < self.health )
-// 		{
-// 			self.kill_damagetype = str_mod;
-// 			maps/mp/zombies/_zm_net::network_safe_init( "dodamage", 6 );
-// 			self maps/mp/zombies/_zm_net::network_choke_action( "dodamage", ::_damage_zombie_network_safe_internal, e_attacker, str_weapon, n_amount );
-// 			return;
-// 		}
-// 		else
-// 		{
-//             if (str_weapon == "zm_tank_flamethrower")
-//             {
-//                 level notify ("tank_kill_fire"); // Notify if zombie is killed with flamethrower
-//             }
-// 			self.kill_damagetype = str_mod;
-// 			maps/mp/zombies/_zm_net::network_safe_init( "dodamage_kill", 4 );
-// 			self maps/mp/zombies/_zm_net::network_choke_action( "dodamage_kill", ::_kill_zombie_network_safe_internal, e_attacker, str_weapon );
-// 		}
-// 	}
-// }
-
-// WatchWpnUsageLvlNotify()
-// {
-//     self endon( "death" );
-//     self endon( "disconnect" );
-//     level endon( "game_ended" );
-
-//     for (;;)
-//     {
-//         self waittill( "weapon_fired", curweapon );
-
-//         level notify( "weapon_fired" ); // Addition
-
-//         self.lastfiretime = gettime();
-//         self.hasdonecombat = 1;
-
-//         if ( isdefined( self.hitsthismag[curweapon] ) )
-//             self thread updatemagshots( curweapon );
-
-//         switch ( weaponclass( curweapon ) )
-//         {
-//             case "rifle":
-//                 if ( curweapon == "crossbow_explosive_mp" )
-//                 {
-//                     level.globalcrossbowfired++;
-//                     self addweaponstat( curweapon, "shots", 1 );
-//                     self thread begingrenadetracking();
-//                     break;
-//                 }
-//             case "spread":
-//             case "smg":
-//             case "pistolspread":
-//             case "pistol spread":
-//             case "pistol":
-//             case "mg":
-//                 self trackweaponfire( curweapon );
-//                 level.globalshotsfired++;
-//                 break;
-//             case "rocketlauncher":
-//             case "grenade":
-//                 if ( is_alt_weapon( curweapon ) )
-//                     curweapon = weaponaltweaponname( curweapon );
-
-//                 self addweaponstat( curweapon, "shots", 1 );
-//                 break;
-//             default:
-//                 break;
-//         }
-
-//         switch ( curweapon )
-//         {
-//             case "mp40_blinged_mp":
-//             case "minigun_mp":
-//             case "m32_mp":
-//             case "m220_tow_mp":
-//             case "m202_flash_mp":
-//                 self.usedkillstreakweapon[curweapon] = 1;
-//                 continue;
-//             default:
-//                 continue;
-//         }
-//     }
-// }

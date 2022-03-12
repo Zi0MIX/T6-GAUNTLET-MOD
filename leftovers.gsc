@@ -152,3 +152,147 @@ TranslateGeneratorNames(generator_id)
         return "generator_church";
     }
 }
+
+// ActorKilledTracked(einflictor, attacker, idamage, smeansofdeath, sweapon, vdir, shitloc, psoffsettime)
+// {
+//     if ( game["state"] == "postgame" )
+//         return;
+
+//     if ( isai( attacker ) && isdefined( attacker.script_owner ) )
+//     {
+//         if ( attacker.script_owner.team != self.aiteam )
+//             attacker = attacker.script_owner;
+//     }
+
+//     if ( attacker.classname == "script_vehicle" && isdefined( attacker.owner ) )
+//         attacker = attacker.owner;
+
+//     if ( isdefined( attacker ) && isplayer( attacker ) )
+//     {
+//         multiplier = 1;
+//         level.murderweapontype = smeansofdeath;     // Pass mod
+//         level.murderweapon = sweapon;               // Pass weapon
+//         level notify("zombie_killed");              // Push trigger
+
+//         if ( is_headshot( sweapon, shitloc, smeansofdeath ) )
+//             multiplier = 1.5;
+
+//         type = undefined;
+
+//         if ( isdefined( self.animname ) )
+//         {
+//             switch ( self.animname )
+//             {
+//                 case "quad_zombie":
+//                     type = "quadkill";
+//                     break;
+//                 case "ape_zombie":
+//                     type = "apekill";
+//                     break;
+//                 case "zombie":
+//                     type = "zombiekill";
+//                     break;
+//                 case "zombie_dog":
+//                     type = "dogkill";
+//                     break;
+//             }
+//         }
+//     }
+
+//     if ( isdefined( self.is_ziplining ) && self.is_ziplining )
+//         self.deathanim = undefined;
+
+//     if ( isdefined( self.actor_killed_override ) )
+//         self [[ self.actor_killed_override ]]( einflictor, attacker, idamage, smeansofdeath, sweapon, vdir, shitloc, psoffsettime );
+// }
+
+// DoDamageNetworkSafe( e_attacker, n_amount, str_weapon, str_mod )
+// {
+// 	if ( isDefined( self.is_mechz ) && self.is_mechz )
+// 	{
+// 		self dodamage( n_amount, self.origin, e_attacker, e_attacker, "none", str_mod, 0, str_weapon );
+// 	}
+// 	else
+// 	{
+// 		if ( n_amount < self.health )
+// 		{
+// 			self.kill_damagetype = str_mod;
+// 			maps/mp/zombies/_zm_net::network_safe_init( "dodamage", 6 );
+// 			self maps/mp/zombies/_zm_net::network_choke_action( "dodamage", ::_damage_zombie_network_safe_internal, e_attacker, str_weapon, n_amount );
+// 			return;
+// 		}
+// 		else
+// 		{
+//             if (str_weapon == "zm_tank_flamethrower")
+//             {
+//                 level notify ("tank_kill_fire"); // Notify if zombie is killed with flamethrower
+//             }
+// 			self.kill_damagetype = str_mod;
+// 			maps/mp/zombies/_zm_net::network_safe_init( "dodamage_kill", 4 );
+// 			self maps/mp/zombies/_zm_net::network_choke_action( "dodamage_kill", ::_kill_zombie_network_safe_internal, e_attacker, str_weapon );
+// 		}
+// 	}
+// }
+
+// WatchWpnUsageLvlNotify()
+// {
+//     self endon( "death" );
+//     self endon( "disconnect" );
+//     level endon( "game_ended" );
+
+//     for (;;)
+//     {
+//         self waittill( "weapon_fired", curweapon );
+
+//         level notify( "weapon_fired" ); // Addition
+
+//         self.lastfiretime = gettime();
+//         self.hasdonecombat = 1;
+
+//         if ( isdefined( self.hitsthismag[curweapon] ) )
+//             self thread updatemagshots( curweapon );
+
+//         switch ( weaponclass( curweapon ) )
+//         {
+//             case "rifle":
+//                 if ( curweapon == "crossbow_explosive_mp" )
+//                 {
+//                     level.globalcrossbowfired++;
+//                     self addweaponstat( curweapon, "shots", 1 );
+//                     self thread begingrenadetracking();
+//                     break;
+//                 }
+//             case "spread":
+//             case "smg":
+//             case "pistolspread":
+//             case "pistol spread":
+//             case "pistol":
+//             case "mg":
+//                 self trackweaponfire( curweapon );
+//                 level.globalshotsfired++;
+//                 break;
+//             case "rocketlauncher":
+//             case "grenade":
+//                 if ( is_alt_weapon( curweapon ) )
+//                     curweapon = weaponaltweaponname( curweapon );
+
+//                 self addweaponstat( curweapon, "shots", 1 );
+//                 break;
+//             default:
+//                 break;
+//         }
+
+//         switch ( curweapon )
+//         {
+//             case "mp40_blinged_mp":
+//             case "minigun_mp":
+//             case "m32_mp":
+//             case "m220_tow_mp":
+//             case "m202_flash_mp":
+//                 self.usedkillstreakweapon[curweapon] = 1;
+//                 continue;
+//             default:
+//                 continue;
+//         }
+//     }
+// }
