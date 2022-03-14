@@ -8,7 +8,7 @@ Patch that emulates gauntlet gamemode from BO4 on BO2 Origins
 4. own a perk.
 5. obtain a weapon from the mystery box.
 6. dig 3 piles (in coop 1 per player).
-7. knife kill 5 zombies.
+7. knife kill 6 zombies (12 for coop).
 8. activate generator 4.
 9. only use the MP-40
 10. crouch only

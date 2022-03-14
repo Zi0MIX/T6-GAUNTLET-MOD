@@ -16,17 +16,14 @@
 #include maps/mp/zombies/_zm_game_module;
 #include maps/mp/zombies/_zm_net;
 
-main()
-{
-	// replaceFunc(maps/mp/zombies/_zm::actor_killed_override, ::ActorKilledTracked);
-    // replaceFunc(maps/mp/zombies/_zm_weapons::watchweaponusagezm, ::WatchWpnUsageLvlNotify);
-    // replaceFunc(maps/mp/zm_tomb_utility::do_damage_network_safe, ::DoDamageNetworkSafe);
-}
+// main()
+// {
+// }
 
 init()
 {
 	level thread OnPlayerConnect();
-    // flag_init("games_gone");
+    flag_init("env_kill");
 }
 
 OnPlayerConnect()
@@ -42,8 +39,9 @@ OnPlayerConnect()
 
     level thread EndGameWatcher();
     level thread TimerHud();
-    level thread DebugHud();
+    // level thread DebugHud(true);
 
+    level waittill ("start_of_round");
     while (1)
     {
         // Activate generator 1
@@ -94,6 +92,13 @@ OnPlayerConnect()
             level thread WatchPerks(8, 1);
         }
 
+        // Only kill with mp40
+        if (level.round_number == 9)
+        {
+            level thread CheckUsedWeapon(9);
+            level thread WatchPlayerStat(9, "grenade_kills");
+        }   
+
         level waittill("start_of_round"); // Careful not to add this inside normal fucntions
 
         wait 0.05;
@@ -105,7 +110,7 @@ OnPlayerSpawned()
     level endon( "game_ended" );
 	self endon( "disconnect" );
 
-    level.round_number = 8; // For debugging
+    level.round_number = 9; // For debugging
 
 	self waittill( "spawned_player" );
 
@@ -125,6 +130,7 @@ SetDvars()
     level.conditions_met = false;
     level.conditions_in_progress = false;
     self thread LevelDvarsWatcher();
+    level.callbackactorkilled = ::actor_killed_override; // Pointer
     while (1)
     {
         level.conditions_met = false;
@@ -134,6 +140,7 @@ SetDvars()
         level.murderweapon = undefined;  
         level.zombie_killed = 0;
         level.gauntlet_kills = 0;
+        level.env_kills = 0;
         level.active_gen_1 = false;
         level.active_gen_2 = false;
         level.active_gen_3 = false;
@@ -153,6 +160,8 @@ SetDvars()
         level.debug_1 = 0;
         level.debug_2 = 0;
 
+        flag_clear("env_kill");
+
         level waittill("end_of_round");
         wait 3; // Must be higher than 1 ::EndGameWatcher
     }
@@ -165,7 +174,7 @@ LevelDvarsWatcher()
 
     while (1)
     {
-        if (level.condition_met)
+        if (level.conditions_met)
         {
            level.conditions_in_progress = false; 
         }
@@ -199,6 +208,7 @@ EndGameWatcher()
         }
         if (!level.conditions_met)
         {
+            // iprintln("u smell");
             EndGame();
         }
         wait 1;
@@ -223,7 +233,6 @@ ForbiddenWeaponWatcher()
 EndGame()
 // Function ends the game immidiately
 {
-    // flag_set("games_gone");
     ConditionsMet(false);
     ConditionsInProgress(false);
     wait 0.1;
@@ -341,6 +350,11 @@ GauntletHud(challenge)
     else if (challenge == 8)
     {
         gauntlet_hud settext("Own Jugger-Nog by the end of the round");
+    }
+
+    else if (challenge == 9)
+    {
+        gauntlet_hud settext("Only kill with MP-40");
     }
 
 
@@ -578,6 +592,7 @@ WatchPlayerStat(challenge, stat_1)
     beg_stat = 0;
     beg_stat_array = array(0, 0, 0, 0, 0, 0, 0, 0);
 
+    // Load beginning stats into an array
     i = 0;
     foreach (player in level.players)
     {
@@ -605,12 +620,13 @@ WatchPlayerStat(challenge, stat_1)
             i++;
         }
         
-        // Calculate if weapon was pulled from box
+        // Define if condition is met
         i = 0;
         foreach (stat in rnd_stat_array)
         {
-            if (challenge == 5)
+            if (challenge == 5 || challenge == 9)
             {
+                // Change to 1 if stat is bigger
                 if (stat > beg_stat_array[i])
                 {
                     did_hit_box[i] = 1;
@@ -618,14 +634,17 @@ WatchPlayerStat(challenge, stat_1)
             }
             else if (challenge == 6)
             {
+                // Change to 1 if stat is bigger coop only
                 if (stat > beg_stat_array[i] && level.players.size > 1)
                 {
                     did_hit_box[i] = 1;
                 }
+                // Change to 2 if stat is bigger solo only
                 else if (stat > beg_stat_array[i] && level.players.size == 1)
                 {
                     did_hit_box[i] = 2;
 
+                    // Change to 1 if stat is bigger by 3 or more
                     if (stat > beg_stat_array[i] + 2)
                     {
                         did_hit_box[i] = 1;
@@ -634,19 +653,23 @@ WatchPlayerStat(challenge, stat_1)
             }
             else if (challenge == 7 && level.players.size == 1)
             {
-                if (stat > beg_stat_array[i] && stat < beg_stat_array[i] + 5)
+                // Change to 2 if stat is bigger
+                if (stat > beg_stat_array[i])
                 {
                     did_hit_box[i] = 2;
-                }
-                else if (stat > beg_stat_array[i] + 5)
-                {
-                    did_hit_box[i] = 1;
+
+                    // Change to 1 is stat is bigger by 6 or more
+                    if (stat > beg_stat_array[i] + 5)
+                    {
+                        did_hit_box[i] = 1;
+                    }
                 }
             }
         }
 
         if (challenge == 7 && level.players.size > 1)
         {
+            // Sum melee kills from all players
             i = 0;
             foreach (stat in rnd_stat_array)
             {
@@ -654,6 +677,7 @@ WatchPlayerStat(challenge, stat_1)
                 i++;
             }
 
+            // Change state to 2 for all players if kills are between 1 and 12
             if (temp_melees > 0 && temp_melees < 12)
             {
                 i = 0;
@@ -662,6 +686,7 @@ WatchPlayerStat(challenge, stat_1)
                     did_hit_box[i] = 2;
                 }
             }
+            // Change state to 1 for all players if kills are bigger or equal 12
             else if (temp_melees >= 12)
             {
                 i = 0;
@@ -682,23 +707,35 @@ WatchPlayerStat(challenge, stat_1)
             }
             else if (fact == 2)
             {
-                piles_in_progress = true;
+                piles_in_progress = true; // Change to true if one or more players is in progress
             }
         }
 
         // Determine state of the challenge
-        if (proper_boxers == 0 && !piles_in_progress)
+        // Flow of the challenge 9 already defined in CheckUsedWeapon()
+        if (challenge == 9)
         {
-            ConditionsMet(false);
-            ConditionsInProgress(false);            
+            if (proper_boxers > 0)
+            {
+                level.forbidden_weapon_used = true;
+            }
         }
-        else if (proper_boxers == level.players.size)
-        {
-            ConditionsMet(true);
-        }
+        
         else
         {
-            ConditionsInProgress(true); 
+            if (proper_boxers == 0 && !piles_in_progress)
+            {
+                ConditionsMet(false);
+                ConditionsInProgress(false);            
+            }
+            else if (proper_boxers == level.players.size)
+            {
+                ConditionsMet(true);
+            }
+            else
+            {
+                ConditionsInProgress(true); 
+            }
         }
 
         wait 0.05;
@@ -712,6 +749,7 @@ WatchPlayerStats(challenge, stat_1, stat_2)
     level endon("start_of_round");
 
     self thread GauntletHud(challenge);
+    self thread EnvironmentKills();
     if (challenge == 2)
     {
         ConditionsInProgress(true);
@@ -732,40 +770,67 @@ WatchPlayerStats(challenge, stat_1, stat_2)
     // Watch stats midround
     rnd_stat1 = beg_stat1;
     rnd_stat2 = beg_stat2;
-    prev_zombie_counter = maps/mp/zombies/_zm_utility::get_round_enemy_array().size + level.zombie_total;
     while (level.round_number == rnd)
     {
         foreach (player in level.players)
         {
-            rnd_stat1 = player.pers[stat_1];
-            rnd_stat2 = player.pers[stat_2];
-        }
-
-        new_zombie_counter = maps/mp/zombies/_zm_utility::get_round_enemy_array().size + level.zombie_total;
-
-        if (new_zombie_counter < prev_zombie_counter)
-        {
-            counter_diff = prev_zombie_counter - new_zombie_counter;
-            stat_diff = rnd_stat1 - old_stat1;
-            if (stat_diff != counter_diff)
-            {
-                rnd_stat1 += counter_diff; // Maxis drone is crashing the game
-            }
+            rnd_stat1 += player.pers[stat_1];
+            rnd_stat2 += player.pers[stat_2];
         }
 
         get_difference = (rnd_stat1 - rnd_stat2);
 
-        if (get_difference != beg_difference)
+        if (get_difference != beg_difference || flag("env_kill"))
         {
             level.forbidden_weapon_used = true;
         }
-
-        prev_zombie_counter = new_zombie_counter;
-        old_stat1 = rnd_stat1;
         
         wait 0.05;
     }
     ConditionsMet(true);
+}
+
+EnvironmentKills()
+// Function sets "env_kill" flag if one more more environment kills happen in the round (tank, robot etc)
+{
+    prev_zombie_counter = maps/mp/zombies/_zm_utility::get_round_enemy_array().size + level.zombie_total;
+    current_round = level.round_number;
+    global_kills = 0;
+    foreach (player in level.players)
+    {
+        global_kills += player.pers["kills"];
+    }
+    old_global_kills = global_kills;
+    kill_difference = 0;
+    stat_difference = 0;
+
+    while (level.round_number == current_round)
+    {
+        global_kills = 0;
+        foreach (player in level.players)
+        {
+            global_kills += player.pers["kills"];
+        }
+        new_zombie_counter = maps/mp/zombies/_zm_utility::get_round_enemy_array().size + level.zombie_total;
+
+        if (new_zombie_counter < prev_zombie_counter)
+        {
+            kill_difference = prev_zombie_counter - new_zombie_counter;
+            stat_difference = global_kills - old_global_kills;
+        }
+
+        if (stat_difference != kill_difference)
+        {
+            // global_kills += kill_difference; // Maxis drone is crashing the game
+            // level notify ("env_kill");
+            flag_set("env_kill");
+        }
+
+        old_global_kills = global_kills;
+        prev_zombie_counter = new_zombie_counter;
+
+        wait 0.05;
+    }
 }
 
 DisableMovement(challenge)
@@ -1041,4 +1106,94 @@ WatchPerkMidRound(perk)
 
         wait 0.05;
     }
+}
+
+CheckUsedWeapon(challenge)
+// Function verifies if kills are only done with specified weapon(s) (doesn't work for greandes!!!!!!)
+{
+    level endon("end_game");
+    level endon("start_of_round");
+
+    self thread GauntletHud(challenge);
+    self thread EnvironmentKills();
+    ConditionsInProgress(true);
+    current_round = level.round_number;
+    while (current_round == level.round_number)
+    {
+        level waittill_any ("zombie_killed", "end_of_round");
+        // iprintln(level.weapon_used);
+        proper_gun_used = false;
+
+        if (challenge == 9 && level.weapon_used == "mp40_zm" || level.weapon_used == "mp40_stalker_zm" || level.weapon_used == "mp40_upgraded_zm" || level.weapon_used == "mp40_stalker_upgraded_zm" || level.weapon_used == "none")
+        {
+            proper_gun_used = true;
+        }
+
+        if (!proper_gun_used)
+        {
+            ConditionsInProgress(false);
+            ConditionsMet(false);
+            level.forbidden_weapon_used = true;
+        }
+
+        wait 0.05;
+    }
+    ConditionsMet(true);
+}
+
+actor_killed_override( einflictor, attacker, idamage, smeansofdeath, sweapon, vdir, shitloc, psoffsettime )
+// Override used to pass weapon used to kill zombies to level variable alongside level notify
+{
+    if (level.round_number == 9)
+    {
+        level.weapon_used = sweapon;
+        level notify ("zombie_killed");
+    }
+
+    if ( game["state"] == "postgame" )
+        return;
+
+    if ( isai( attacker ) && isdefined( attacker.script_owner ) )
+    {
+        if ( attacker.script_owner.team != self.aiteam )
+            attacker = attacker.script_owner;
+    }
+
+    if ( attacker.classname == "script_vehicle" && isdefined( attacker.owner ) )
+        attacker = attacker.owner;
+
+    if ( isdefined( attacker ) && isplayer( attacker ) )
+    {
+        multiplier = 1;
+
+        if ( is_headshot( sweapon, shitloc, smeansofdeath ) )
+            multiplier = 1.5;
+
+        type = undefined;
+
+        if ( isdefined( self.animname ) )
+        {
+            switch ( self.animname )
+            {
+                case "quad_zombie":
+                    type = "quadkill";
+                    break;
+                case "ape_zombie":
+                    type = "apekill";
+                    break;
+                case "zombie":
+                    type = "zombiekill";
+                    break;
+                case "zombie_dog":
+                    type = "dogkill";
+                    break;
+            }
+        }
+    }
+
+    if ( isdefined( self.is_ziplining ) && self.is_ziplining )
+        self.deathanim = undefined;
+
+    if ( isdefined( self.actor_killed_override ) )
+        self [[ self.actor_killed_override ]]( einflictor, attacker, idamage, smeansofdeath, sweapon, vdir, shitloc, psoffsettime );
 }
