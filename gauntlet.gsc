@@ -39,9 +39,10 @@ OnPlayerConnect()
 
     level thread EndGameWatcher();
     level thread TimerHud();
+    level thread BetaHud(1);
     // level thread DebugHud(true);
 
-    level waittill ("start_of_round");
+    // level waittill ("start_of_round");
     while (1)
     {
         // Activate generator 1
@@ -110,13 +111,13 @@ OnPlayerSpawned()
     level endon( "game_ended" );
 	self endon( "disconnect" );
 
-    level.round_number = 9; // For debugging
+    // level.round_number = 1; // For debugging
 
 	self waittill( "spawned_player" );
 
     foreach (player in level.players)
     {
-        player.score = 500000; // For debugging
+        player.score = 505; // For debugging
     }
 
 	flag_wait( "initial_blackscreen_passed" );
@@ -201,16 +202,24 @@ EndGameWatcher()
     {
         level waittill ("end_of_round");
         wait 1;
-        if (level.round_number > 30)
+        if (!level.conditions_met)
+        {
+            EndGame();
+        }
+
+        else if (level.round_number >= 30)
         {
             maps\mp\zombies\_zm_game_module::freeze_players( 1 );
             level notify("game_won"); // Need to code that
         }
-        if (!level.conditions_met)
+
+        else if (level.round_number >= 10) // For beta only
         {
-            // iprintln("u smell");
-            EndGame();
+            wait 5;
+            EndGame("you win kappa");
         }
+        
+
         wait 1;
     }
 }
@@ -230,13 +239,18 @@ ForbiddenWeaponWatcher()
     }
 }
 
-EndGame()
+EndGame(iprint)
 // Function ends the game immidiately
 {
+    if (!isdefined(iprint))
+    {
+        iprint = "you bad";
+    }
+    iprintln(iprint);
     ConditionsMet(false);
     ConditionsInProgress(false);
     wait 0.1;
-    maps\mp\zombies\_zm_game_module::freeze_players( 1 );
+    maps\mp\zombies\_zm_game_module::freeze_players(1);
     level notify("end_game");
 }
 
@@ -380,7 +394,7 @@ GauntletHud(challenge)
         wait 0.05;
     }
 
-    wait 0.1;
+    wait 1;
     gauntlet_hud.color = GauntletHudAfteraction();
 
     wait 4;
@@ -402,6 +416,29 @@ GauntletHudAfteraction()
     {
         return (0.8, 0, 0);
     }
+}
+
+BetaHud(beta_version)
+// Function for beta overlay
+{
+    self endon("disconnect");
+
+    if (!isdefined(beta_version))
+    {
+        beta_version = 0;
+    }
+    beta_hud = newHudElem();
+    beta_hud.alignx = "center";
+    beta_hud.aligny = "top";
+    beta_hud.horzalign = "user_center";
+    beta_hud.vertalign = "user_top";
+    beta_hud.x = 0;
+    beta_hud.y = 5;
+    beta_hud.fontscale = 1.2;
+    beta_hud.alpha = 0.3;
+    beta_hud.hidewheninmenu = 1;
+    beta_hud.color = (0, 0.4, 0.8);
+    beta_hud settext("Beta V" + beta_version);
 }
 
 DebugHud(debug)
@@ -787,6 +824,7 @@ WatchPlayerStats(challenge, stat_1, stat_2)
         
         wait 0.05;
     }
+    wait 0.1;
     ConditionsMet(true);
 }
 
@@ -1129,14 +1167,17 @@ CheckUsedWeapon(challenge)
             proper_gun_used = true;
         }
 
-        if (!proper_gun_used)
+        if (!proper_gun_used || flag("env_kill"))
         {
-            ConditionsInProgress(false);
-            ConditionsMet(false);
             level.forbidden_weapon_used = true;
         }
 
         wait 0.05;
+    }
+    wait 0.1;
+    if (flag("env_kill")) // Failsafe
+    {
+        level.forbidden_weapon_used = true;
     }
     ConditionsMet(true);
 }
