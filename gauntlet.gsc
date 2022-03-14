@@ -88,17 +88,23 @@ OnPlayerConnect()
         }
 
         // Have one jug by the end of the round
-        if (level.round_number == 8)
+        else if (level.round_number == 8)
         {
             level thread WatchPerks(8, 1);
         }
 
         // Only kill with mp40
-        if (level.round_number == 9)
+        else if (level.round_number == 9)
         {
             level thread CheckUsedWeapon(9);
             level thread WatchPlayerStat(9, "grenade_kills");
         }   
+
+        // Crouch only
+        else if (level.round_number == 10)
+        {
+            level thread DisableMovement(10);
+        }
 
         level waittill("start_of_round"); // Careful not to add this inside normal fucntions
 
@@ -111,13 +117,13 @@ OnPlayerSpawned()
     level endon( "game_ended" );
 	self endon( "disconnect" );
 
-    // level.round_number = 1; // For debugging
+    level.round_number = 10; // For debugging
 
 	self waittill( "spawned_player" );
 
     foreach (player in level.players)
     {
-        player.score = 505; // For debugging
+        player.score = 50005; // For debugging
     }
 
 	flag_wait( "initial_blackscreen_passed" );
@@ -215,8 +221,8 @@ EndGameWatcher()
 
         else if (level.round_number >= 10) // For beta only
         {
-            wait 5;
-            EndGame("you win kappa");
+            // wait 5;
+            // EndGame("you win kappa");
         }
         
 
@@ -365,12 +371,14 @@ GauntletHud(challenge)
     {
         gauntlet_hud settext("Own Jugger-Nog by the end of the round");
     }
-
     else if (challenge == 9)
     {
         gauntlet_hud settext("Only kill with MP-40");
     }
-
+    else if (challenge == 10)
+    {
+        gauntlet_hud settext("Crouch only");
+    }
 
     while (level.round_number == challenge)
     {
@@ -882,8 +890,17 @@ DisableMovement(challenge)
     self thread GauntletHud(challenge);
     foreach (player in level.players)
     {
-        player setmovespeedscale(0);
-        player allowjump(0);
+        if (challenge == 3)
+        {
+            player setmovespeedscale(0);
+            player allowjump(0);
+        }
+        else if (challenge == 10)
+        {
+            player allowstand(0);
+            player allowprone(0);
+            player allowsprint(0);
+        }
     }
 
     level waittill ("end_of_round");
@@ -892,6 +909,9 @@ DisableMovement(challenge)
     {
         player setmovespeedscale(1);
         player allowjump(1);
+        player allowstand(1);
+        player allowprone(1);
+        player allowsprint(1);
     }
 }
 
