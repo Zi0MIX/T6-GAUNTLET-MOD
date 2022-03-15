@@ -39,7 +39,7 @@ OnPlayerConnect()
 
     level thread EndGameWatcher();
     level thread TimerHud();
-    level thread BetaHud(1);
+    level thread BetaHud(2);
     // level thread DebugHud(true);
 
     // level waittill ("start_of_round");
@@ -147,22 +147,22 @@ OnPlayerSpawned()
     level endon( "game_ended" );
 	self endon( "disconnect" );
 
-    level.round_number = 15; // For debugging
+    // level.round_number = 15; // For debugging
 
 	self waittill( "spawned_player" );
 
     foreach (player in level.players)
     {
-        player.score = 50005; // For debugging
+        player.score = 505; // For debugging
     }
 
 	flag_wait( "initial_blackscreen_passed" );
 
-    if( level.player_out_of_playable_area_monitor && IsDefined( level.player_out_of_playable_area_monitor ) )
-	{
-		self notify( "stop_player_out_of_playable_area_monitor" );
-	}
-	level.player_out_of_playable_area_monitor = 0;
+    // if( level.player_out_of_playable_area_monitor && IsDefined( level.player_out_of_playable_area_monitor ) )
+	// {
+	// 	self notify( "stop_player_out_of_playable_area_monitor" );
+	// }
+	// level.player_out_of_playable_area_monitor = 0;
 }
 
 SetDvars()
@@ -256,10 +256,10 @@ EndGameWatcher()
             level notify("game_won"); // Need to code that
         }
 
-        else if (level.round_number >= 10) // For beta only
+        else if (level.round_number >= 16) // For beta only
         {
-            // wait 5;
-            // EndGame("you win kappa");
+            wait 5;
+            EndGame("you win kappa");
         }
         
 
