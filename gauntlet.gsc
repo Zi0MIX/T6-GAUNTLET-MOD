@@ -48,7 +48,7 @@ OnPlayerConnect()
         // Activate generator 1
         if (level.round_number == 1)
         {
-            level thread CheckForGenerator(1, 1);
+            level thread CheckForGenerator(1, 1, 1);
         }
 
         // Only kill with melee (except for shield)
@@ -106,24 +106,34 @@ OnPlayerConnect()
             level thread DisableMovement(10);
         }
 
+        // Have two perks at the end of the round
         else if (level.round_number == 11)
         {
             level thread WatchPerks(11, 2);
         }
 
+        // Have at least one upgraded staff at the end of the round
         else if (level.round_number == 12)
         {
             level thread WatchUpgradedStaffs(12, 1);
         }
 
+        // Survive a round with super-sprinters
         else if (level.round_number == 13)
         {
             level thread ZombieSuperSprint(13);
         }
 
+        // No jumping
         else if (level.round_number == 14)
         {
             level thread DisableMovement(14);
+        }
+
+        // Activate all generators
+        else if (level.round_number == 15)
+        {
+            level thread CheckForGenerator(15, 0);
         }
 
         level waittill("start_of_round"); // Careful not to add this inside normal fucntions
@@ -137,7 +147,7 @@ OnPlayerSpawned()
     level endon( "game_ended" );
 	self endon( "disconnect" );
 
-    level.round_number = 13; // For debugging
+    level.round_number = 15; // For debugging
 
 	self waittill( "spawned_player" );
 
@@ -422,6 +432,10 @@ GauntletHud(challenge)
     {
         gauntlet_hud settext("No jumping");
     }
+    else if (challenge == 15)
+    {
+        gauntlet_hud settext("Activate all generators");
+    }
 
     while (level.round_number == challenge)
     {
@@ -517,7 +531,7 @@ DebugHud(debug)
     }
 }
 
-CheckForGenerator(gen_id, rnd_override)
+CheckForGenerator(challenge, gen_id, rnd_override)
 // Master function for checking generators. Pass 0 as gen_id to verify all gens
 {
     level endon("end_game");
@@ -530,7 +544,7 @@ CheckForGenerator(gen_id, rnd_override)
     }
     self.generator_id = gen_id;
 
-    self thread GauntletHud(self.current_round);
+    self thread GauntletHud(challenge);
     self thread GeneratorCondition();
     self thread GeneratorWatcher();
 }
