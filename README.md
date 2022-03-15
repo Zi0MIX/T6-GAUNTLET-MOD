@@ -14,7 +14,7 @@ Patch that emulates gauntlet gamemode from BO4 on BO2 Origins
 10. crouch only
 11. have at least 2 perks at the end of the round
 12. have at least one staff upgraded at the end of the round
-13. don't sprint
+13. survive a round with super-sprinters
 14. don't jump
 15. activate all generators
 16. pack-a-punch a weapon
