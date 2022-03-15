@@ -106,6 +106,11 @@ OnPlayerConnect()
             level thread DisableMovement(10);
         }
 
+        else if (level.round_number == 11)
+        {
+            level thread WatchPerks(11, 2);
+        }
+
         level waittill("start_of_round"); // Careful not to add this inside normal fucntions
 
         wait 0.05;
@@ -117,7 +122,7 @@ OnPlayerSpawned()
     level endon( "game_ended" );
 	self endon( "disconnect" );
 
-    level.round_number = 10; // For debugging
+    level.round_number = 11; // For debugging
 
 	self waittill( "spawned_player" );
 
@@ -378,6 +383,10 @@ GauntletHud(challenge)
     else if (challenge == 10)
     {
         gauntlet_hud settext("Crouch only");
+    }
+    else if (challenge == 11)
+    {
+        gauntlet_hud settext("Own two perks at the end of the round");
     }
 
     while (level.round_number == challenge)
@@ -923,7 +932,7 @@ WatchPerks(challenge, number_of_perks)
 
     level.proper_players = 0;
     self thread GauntletHud(challenge);
-    if (challenge == 4)
+    if (challenge == 4 || challenge == 11)
     {
         self thread PerkWatcher(number_of_perks);
     }
@@ -934,7 +943,7 @@ WatchPerks(challenge, number_of_perks)
     }
     
     level waittill ("end_of_round");
-    if (challenge == 4 && level.proper_players == level.players.size)
+    if ((challenge == 4 || challenge == 11) && level.proper_players == level.players.size)
     {
         ConditionsMet(true);
     }
