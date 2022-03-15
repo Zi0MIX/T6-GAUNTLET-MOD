@@ -48,67 +48,72 @@ OnPlayerConnect()
         // Activate generator 1
         if (level.round_number == 1)
         {
-            level thread CheckForGenerator(1, 1);
+            // level thread CheckForGenerator(1, 1);
         }
 
         // Only kill with melee (except for shield)
         else if (level.round_number == 2)
         {
-            level thread WatchPlayerStats(2, "kills", "melee_kills");
+            // level thread WatchPlayerStats(2, "kills", "melee_kills");
         }
 
         // Stay still
         else if (level.round_number == 3)
         {
-            level thread DisableMovement(3);
+            // level thread DisableMovement(3);
         }
 
         // Have one perk at the end of the round
         else if (level.round_number == 4)
         {
-            level thread WatchPerks(4, 1);
+            // level thread WatchPerks(4, 1);
         }
 
         // Pull at least one weapon from the box
         else if (level.round_number == 5)
         {
-            level thread WatchPlayerStat(5, "grabbed_from_magicbox");
+            // level thread WatchPlayerStat(5, "grabbed_from_magicbox");
         }
 
         // Dig 3 piles (1 for each on coop)
         else if (level.round_number == 6)
         {
-            level thread WatchPlayerStat(6, "tomb_dig");
+            // level thread WatchPlayerStat(6, "tomb_dig");
         }
 
         // Dig 3 piles (1 for each on coop)
         else if (level.round_number == 7)
         {
-            level thread WatchPlayerStat(7, "melee_kills");
+            // level thread WatchPlayerStat(7, "melee_kills");
         }
 
         // Have one jug by the end of the round
         else if (level.round_number == 8)
         {
-            level thread WatchPerks(8, 1);
+            // level thread WatchPerks(8, 1);
         }
 
         // Only kill with mp40
         else if (level.round_number == 9)
         {
-            level thread CheckUsedWeapon(9);
-            level thread WatchPlayerStat(9, "grenade_kills");
+            // level thread CheckUsedWeapon(9);
+            // level thread WatchPlayerStat(9, "grenade_kills");
         }   
 
         // Crouch only
         else if (level.round_number == 10)
         {
-            level thread DisableMovement(10);
+            // level thread DisableMovement(10);
         }
 
         else if (level.round_number == 11)
         {
-            level thread WatchPerks(11, 2);
+            // level thread WatchPerks(11, 2);
+        }
+
+        else if (level.round_number == 12)
+        {
+            level thread WatchUpgradedStaffs(12, 1);
         }
 
         level waittill("start_of_round"); // Careful not to add this inside normal fucntions
@@ -122,7 +127,7 @@ OnPlayerSpawned()
     level endon( "game_ended" );
 	self endon( "disconnect" );
 
-    level.round_number = 11; // For debugging
+    level.round_number = 1; // For debugging
 
 	self waittill( "spawned_player" );
 
@@ -132,6 +137,12 @@ OnPlayerSpawned()
     }
 
 	flag_wait( "initial_blackscreen_passed" );
+
+    if( level.player_out_of_playable_area_monitor && IsDefined( level.player_out_of_playable_area_monitor ) )
+	{
+		self notify( "stop_player_out_of_playable_area_monitor" );
+	}
+	level.player_out_of_playable_area_monitor = 0;
 }
 
 SetDvars()
@@ -139,13 +150,14 @@ SetDvars()
 {
     level endon( "game_ended" );
     
-    level.conditions_met = false;
+    level.conditions_met = true;
     level.conditions_in_progress = false;
     self thread LevelDvarsWatcher();
     level.callbackactorkilled = ::actor_killed_override; // Pointer
+
     while (1)
     {
-        level.conditions_met = false;
+        // level.conditions_met = false;
         level.conditions_in_progress = false;
         level.forbidden_weapon_used = false;
         level.murderweapontype = undefined;  
@@ -387,6 +399,10 @@ GauntletHud(challenge)
     else if (challenge == 11)
     {
         gauntlet_hud settext("Own two perks at the end of the round");
+    }
+    else if (challenge == 12)
+    {
+        gauntlet_hud settext("Upgrade one staff");
     }
 
     while (level.round_number == challenge)
@@ -826,6 +842,8 @@ WatchPlayerStats(challenge, stat_1, stat_2)
     rnd_stat2 = beg_stat2;
     while (level.round_number == rnd)
     {
+        rnd_stat1 = 0;
+        rnd_stat2 = 0;
         foreach (player in level.players)
         {
             rnd_stat1 += player.pers[stat_1];
@@ -833,6 +851,7 @@ WatchPlayerStats(challenge, stat_1, stat_2)
         }
 
         get_difference = (rnd_stat1 - rnd_stat2);
+        // print(get_difference + " / " + beg_difference);
 
         if (get_difference != beg_difference || flag("env_kill"))
         {
@@ -1266,4 +1285,67 @@ actor_killed_override( einflictor, attacker, idamage, smeansofdeath, sweapon, vd
 
     if ( isdefined( self.actor_killed_override ) )
         self [[ self.actor_killed_override ]]( einflictor, attacker, idamage, smeansofdeath, sweapon, vdir, shitloc, psoffsettime );
+}
+
+WatchUpgradedStaffs(challenge, number_of_staffs)
+{
+    level.conditions_met = false;
+
+
+    self thread GauntletHud(challenge);
+    current_round = level.round_number;
+    upgraded_staffs = 0;
+    upgraded_wind = false;
+    upgraded_fire = false;
+    upgraded_lighting = false;
+    upgraded_ice = false;
+    if (!isdefined(number_of_staffs))
+    {
+        number_of_staffs = 4;
+    }
+
+    while ((current_round == level.round_number) && (upgraded_staffs < number_of_staffs))
+    {
+        foreach (staff in level.a_elemental_staffs_upgraded)
+        {
+            if (staff.charger.is_charged == 1 && staff.weapname == "staff_air_upgraded_zm" && !upgraded_wind)
+            {
+                print("wind_upgrade"); // For testing
+                upgraded_wind = true;
+                upgraded_staffs++;
+            }
+
+            else if (staff.charger.is_charged == 1 && staff.weapname == "staff_fire_upgraded_zm" && !upgraded_fire)
+            {
+                print("fire_upgrade"); // For testing
+                upgraded_fire = true;
+                upgraded_staffs++;
+            }
+
+            else if (staff.charger.is_charged == 1 && staff.weapname == "staff_lightning_upgraded_zm" && !upgraded_lighting)
+            {
+                print("lighting_upgrade"); // For testing
+                upgraded_lighting = true;
+                upgraded_staffs++;
+            }
+
+            else if (staff.charger.is_charged == 1 && staff.weapname == "staff_water_upgraded_zm" && !upgraded_ice)
+            {
+                print("ice_upgrade"); // For testing
+                upgraded_ice = true;
+                upgraded_staffs++;
+            }
+        }
+
+        if (upgraded_staffs > 0)
+        {
+            ConditionsInProgress(true);
+
+            if (upgraded_staffs >= number_of_staffs)
+            {
+                ConditionsMet(true);
+            }
+        }
+        wait 0.05;
+    }
 }
