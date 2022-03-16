@@ -15,6 +15,7 @@
 #include maps/mp/gametypes_zm/_tweakables;
 #include maps/mp/zombies/_zm_game_module;
 #include maps/mp/zombies/_zm_net;
+#include maps/mp/zombies/_zm_ai_mechz;
 
 // main()
 // {
@@ -40,6 +41,7 @@ OnPlayerConnect()
     level thread EndGameWatcher();
     level thread TimerHud();
     level thread BetaHud(2);
+    level thread SetupPanzerRound(16);
     // level thread DebugHud(true);
 
     // level waittill ("start_of_round");
@@ -136,6 +138,12 @@ OnPlayerConnect()
             level thread CheckForGenerator(15, 0);
         }
 
+        // Survive a round with Panzers
+        else if (level.round_number == 16)
+        {
+            level thread TooManyPanzers(16);
+        }
+
         level waittill("start_of_round"); // Careful not to add this inside normal fucntions
 
         wait 0.05;
@@ -147,13 +155,13 @@ OnPlayerSpawned()
     level endon( "game_ended" );
 	self endon( "disconnect" );
 
-    // level.round_number = 15; // For debugging
+    level.round_number = 15; // For debugging
 
 	self waittill( "spawned_player" );
 
     foreach (player in level.players)
     {
-        player.score = 505; // For debugging
+        player.score = 50005; // For debugging
     }
 
 	flag_wait( "initial_blackscreen_passed" );
@@ -258,8 +266,8 @@ EndGameWatcher()
 
         else if (level.round_number >= 16) // For beta only
         {
-            wait 5;
-            EndGame("you win kappa");
+            // wait 5;
+            // EndGame("you win kappa");
         }
         
 
@@ -435,6 +443,10 @@ GauntletHud(challenge)
     else if (challenge == 15)
     {
         gauntlet_hud settext("Activate all generators");
+    }
+    else if (challenge == 16)
+    {
+        gauntlet_hud settext("Survive round with panzers");
     }
 
     while (level.round_number == challenge)
@@ -1430,4 +1442,61 @@ ZombieSuperSprint(challenge)
     }
     wait 0.1;
     ConditionsMet(true);
+}
+
+SetupPanzerRound(round)
+{
+    while(1)
+    {
+        level waittill ("start_of_round");
+        if (level.round_number == round - 1)
+        {
+            level waittill ("end_of_round");
+            level.next_mechz_round = round;
+        }
+        wait 0.05;
+    }
+    // level waittill ("end_of_round");
+}
+
+TooManyPanzers(challenge)
+{
+    level endon("end_game");
+    level endon("start_of_round");
+
+    self thread PanzerDeathWatcher();
+    self thread GauntletHud(challenge);
+
+    // level.next_mechz_round = challenge;  // Debugging
+
+    //level.mechz_spawners = getentarray( "mechz_spawner", "script_noteworthy" );
+    level.mech_zombies_alive = 0;
+    current_round = level.round_number;
+    level.wanted_mechz = 7;
+    ConditionsInProgress(true);
+    
+    while (current_round == level.round_number)
+    {
+        if (level.mech_zombies_alive < level.wanted_mechz)
+        {
+            ai = spawn_zombie(level.mechz_spawners[0]);
+            ai thread mechz_spawn();
+            level.mech_zombies_alive++;
+            wait randomintrange(4, 8);
+        }
+        wait 0.05;
+    }
+    wait 0.1;
+    ConditionsMet(true);
+}
+
+PanzerDeathWatcher()
+{
+    while (1)
+    {
+        level waittill ("mechz_killed");
+        level.wanted_mechz = randomintrange(6, 11);
+        level.mech_zombies_alive--;
+        wait 0.05;
+    }
 }

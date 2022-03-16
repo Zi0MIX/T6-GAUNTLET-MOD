@@ -17,7 +17,7 @@ Patch that emulates gauntlet gamemode from BO4 on BO2 Origins
 13. survive a round with super-sprinters
 14. don't jump
 15. activate all generators
-16. pack-a-punch a weapon
+16. survive the round with panzers
 17. dig up 7 piles (in coop 2 per player)
 18. have "One Inch Punch" at the end of the round
 19. only use the MP-40 
