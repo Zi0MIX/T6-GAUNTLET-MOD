@@ -19,7 +19,7 @@ Patch that emulates gauntlet gamemode from BO4 on BO2 Origins
 15. activate all generators
 16. survive the round with panzers
 17. dig up 7 piles (in coop 2 per player)
-18. have "One Inch Punch" at the end of the round
+18. Time is faster
 19. only use the MP-40 
 20. obtain a weapon from the mystery box and pack-a-punch it
 21. have at least 5 perks at the end of the round

@@ -83,7 +83,7 @@ OnPlayerConnect()
             level thread WatchPlayerStat(6, "tomb_dig");
         }
 
-        // Dig 3 piles (1 for each on coop)
+        // Knife kill 6 zombies (12 coop)
         else if (level.round_number == 7)
         {
             level thread WatchPlayerStat(7, "melee_kills");
@@ -144,6 +144,25 @@ OnPlayerConnect()
             level thread TooManyPanzers(16);
         }
 
+        // Dig 7 piles (2 for each on coop)
+        else if (level.round_number == 17)
+        {
+            level thread WatchPlayerStat(17, "tomb_dig");
+        }
+
+        // Timescale
+        else if (level.round_number == 18)
+        {
+            level thread SetDvarForRound(18, "timescale", 1.6, 1);
+        }
+
+        // Only kill with mp40
+        else if (level.round_number == 19)
+        {
+            level thread CheckUsedWeapon(19);
+            level thread WatchPlayerStat(19, "grenade_kills");
+        }   
+
         level waittill("start_of_round"); // Careful not to add this inside normal fucntions
 
         wait 0.05;
@@ -155,7 +174,7 @@ OnPlayerSpawned()
     level endon( "game_ended" );
 	self endon( "disconnect" );
 
-    level.round_number = 15; // For debugging
+    level.round_number = 18; // For debugging
 
 	self waittill( "spawned_player" );
 
@@ -448,6 +467,21 @@ GauntletHud(challenge)
     {
         gauntlet_hud settext("Survive round with panzers");
     }
+    else if (challenge == 17)
+    {
+        if (level.players.size == 1)
+        {
+            gauntlet_hud settext("Dig 7 piles");
+        }
+        else
+        {
+            gauntlet_hud settext("Dig 2 piles");
+        }
+    }
+    else if (challenge == 18)
+    {
+        gauntlet_hud settext("Everything is faster");
+    }
 
     while (level.round_number == challenge)
     {
@@ -738,7 +772,7 @@ WatchPlayerStat(challenge, stat_1)
         i = 0;
         foreach (stat in rnd_stat_array)
         {
-            if (challenge == 5 || challenge == 9)
+            if (challenge == 5 || challenge == 9 || challenge == 19)
             {
                 // Change to 1 if stat is bigger
                 if (stat > beg_stat_array[i])
@@ -753,13 +787,31 @@ WatchPlayerStat(challenge, stat_1)
                 {
                     did_hit_box[i] = 1;
                 }
-                // Change to 2 if stat is bigger solo only
+                // Change to 2 if stat is bigger for solo only
                 else if (stat > beg_stat_array[i] && level.players.size == 1)
                 {
                     did_hit_box[i] = 2;
 
                     // Change to 1 if stat is bigger by 3 or more
                     if (stat > beg_stat_array[i] + 2)
+                    {
+                        did_hit_box[i] = 1;
+                    }
+                }
+            }
+            else if (challenge == 17)
+            {
+                if (stat > beg_stat_array[i])
+                {
+                    did_hit_box[i] = 2;
+
+                    // Change to 1 if stat is bigger by 7 or more for solo
+                    if ((stat > beg_stat_array[i] + 6) && level.players.size == 1)
+                    {
+                        did_hit_box[i] = 1;
+                    }
+                    // Change to 1 if stat is bigger by 2 or more for coop
+                    else if ((stat > beg_stat_array[i] + 1) && level.players.size > 1)
                     {
                         did_hit_box[i] = 1;
                     }
@@ -827,7 +879,7 @@ WatchPlayerStat(challenge, stat_1)
 
         // Determine state of the challenge
         // Flow of the challenge 9 already defined in CheckUsedWeapon()
-        if (challenge == 9)
+        if (challenge == 9 || challenge == 19)
         {
             if (proper_boxers > 0)
             {
@@ -1258,7 +1310,7 @@ CheckUsedWeapon(challenge)
         // iprintln(level.weapon_used);
         proper_gun_used = false;
 
-        if (challenge == 9 && level.weapon_used == "mp40_zm" || level.weapon_used == "mp40_stalker_zm" || level.weapon_used == "mp40_upgraded_zm" || level.weapon_used == "mp40_stalker_upgraded_zm" || level.weapon_used == "none")
+        if (level.weapon_used == "mp40_zm" || level.weapon_used == "mp40_stalker_zm" || level.weapon_used == "mp40_upgraded_zm" || level.weapon_used == "mp40_stalker_upgraded_zm" || level.weapon_used == "none")
         {
             proper_gun_used = true;
         }
@@ -1499,4 +1551,27 @@ PanzerDeathWatcher()
         level.mech_zombies_alive--;
         wait 0.05;
     }
+}
+
+SetDvarForRound(challenge, dvar, start_value, end_value)
+{
+    level endon("end_game");
+    level endon("start_of_round");
+
+    self thread GauntletHud(challenge);
+
+    if (!isdefined(start_value))
+    {
+        start_value = 0;
+    }
+    if (!isdefined(end_value))
+    {
+        end_value = 1;
+    }
+
+    ConditionsInProgress(true);
+    setdvar(dvar, start_value);
+    level waittill ("end_of_round");
+    setdvar(dvar, end_value);
+    ConditionsMet(true);
 }
