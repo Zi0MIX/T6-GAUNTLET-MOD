@@ -25,6 +25,7 @@ init()
 {
 	level thread OnPlayerConnect();
     flag_init("env_kill");
+    flag_init("out_of_zone");
 }
 
 OnPlayerConnect()
@@ -163,6 +164,18 @@ OnPlayerConnect()
             level thread WatchPlayerStat(19, "grenade_kills");
         }   
 
+        // Protect church
+        else if (level.round_number == 20)
+        {
+            level thread CheckForZone(20, "zone_village_2", 60);
+        }
+
+        // Have five perks at the end of the round
+        else if (level.round_number == 21)
+        {
+            level thread WatchPerks(21, 5);
+        }
+
         level waittill("start_of_round"); // Careful not to add this inside normal fucntions
 
         wait 0.05;
@@ -174,13 +187,13 @@ OnPlayerSpawned()
     level endon( "game_ended" );
 	self endon( "disconnect" );
 
-    // level.round_number = 18; // For debugging
+    level.round_number = 20; // For debugging
 
 	self waittill( "spawned_player" );
 
     foreach (player in level.players)
     {
-        player.score = 505; // For debugging
+        player.score = 50005; // For debugging
     }
 
 	flag_wait( "initial_blackscreen_passed" );
@@ -481,6 +494,18 @@ GauntletHud(challenge)
     else if (challenge == 18)
     {
         gauntlet_hud settext("Everything is faster");
+    }
+    else if (challenge == 19)
+    {
+        gauntlet_hud settext("Only kill with MP-40");
+    }
+    else if (challenge == 20)
+    {
+        gauntlet_hud settext("Protect church");
+    }
+    else if (challenge == 21)
+    {
+        gauntlet_hud settext("Own five perks at the end of the round");
     }
 
     while (level.round_number == challenge)
@@ -1051,18 +1076,18 @@ WatchPerks(challenge, number_of_perks)
 
     level.proper_players = 0;
     self thread GauntletHud(challenge);
-    if (challenge == 4 || challenge == 11)
-    {
-        self thread PerkWatcher(number_of_perks);
-    }
-    else if (challenge == 8)
+    if (challenge == 8)
     {
         self thread EachPerkWatcher();
         self thread WatchPerkMidRound("jug");
     }
+    else
+    {
+        self thread PerkWatcher(number_of_perks);
+    }
     
     level waittill ("end_of_round");
-    if ((challenge == 4 || challenge == 11) && level.proper_players == level.players.size)
+    if (challenge != 8 && level.proper_players == level.players.size)
     {
         ConditionsMet(true);
     }
@@ -1512,6 +1537,7 @@ SetupPanzerRound(round)
 }
 
 TooManyPanzers(challenge)
+// Function spawns panzers during the whole duration of the round
 {
     level endon("end_game");
     level endon("start_of_round");
@@ -1543,6 +1569,7 @@ TooManyPanzers(challenge)
 }
 
 PanzerDeathWatcher()
+// Function watches for dying panzers and keeps the counter on proper number
 {
     while (1)
     {
@@ -1554,6 +1581,7 @@ PanzerDeathWatcher()
 }
 
 SetDvarForRound(challenge, dvar, start_value, end_value)
+// Function sets a dvar to one value and changes it to another at the end of round
 {
     level endon("end_game");
     level endon("start_of_round");
@@ -1574,4 +1602,232 @@ SetDvarForRound(challenge, dvar, start_value, end_value)
     level waittill ("end_of_round");
     setdvar(dvar, end_value);
     ConditionsMet(true);
+}
+
+CheckForZone(challenge, zone1, time, zone2, zone3, zone4, zone5, zone6, zone7, zone8)
+// dsc
+{
+    level endon("end_game");
+    level endon("start_of_round");
+
+    self thread GauntletHud(challenge);
+    
+    // Optional arguments handling
+    if (!isdefined(time))
+    {
+        time = 45;
+    }
+
+    if (!isdefined(zone2))
+    {
+        zone2 = "";
+    }
+    if (!isdefined(zone3))
+    {
+        zone3 = "";
+    }
+    if (!isdefined(zone4))
+    {
+        zone4 = "";
+    }
+    if (!isdefined(zone5))
+    {
+        zone5 = "";
+    }
+    if (!isdefined(zone6))
+    {
+        zone6 = "";
+    }
+    if (!isdefined(zone7))
+    {
+        zone7 = "";
+    }
+    if (!isdefined(zone8))
+    {
+        zone8 = "";
+    }
+
+    current_round = level.round_number;
+
+    // Define player variables
+    foreach (player in level.players)
+    {
+        player.threaded_already = false;
+    }
+
+    // Control if players get to the zone
+    tick = time * 2;
+    while (tick > 0)
+    {
+        in_zone = 0;
+        modulo = tick % 10;
+        foreach (player in level.players)
+        {
+            right_zone = false;
+            current_zone = player get_current_zone();
+            // Count up players in the right zone
+            if (current_zone == zone1 || current_zone == zone2 || current_zone == zone3 || current_zone == zone4 || current_zone == zone5 || current_zone == zone6 || current_zone == zone7 || current_zone == zone8)
+            {
+                right_zone = true;
+                in_zone++;
+            }
+
+            // Print a reminder every 5 seconds if not in zone
+            if (modulo == 0 && !right_zone)
+            {
+                player iprintln("^1GET TO THE ZONE");
+            }
+        }
+
+        // Start the challenge if all players are in zone early
+        if (in_zone == level.players.size)
+        {
+            ConditionsInProgress(true);
+            break;
+        }
+
+        // Print warnings at the end of the countdown
+        if (tick == 20 && !level.conditions_in_progress)
+        {
+            iprintln("^310 SECONDS LEFT");
+        }
+        else if (tick == 10 && !level.conditions_in_progress)
+        {
+            iprintln("^15 SECONDS LEFT");
+        }
+
+        tick--;
+        wait 0.5;
+    }
+
+    // End game if not all players in zone
+    if (!level.conditions_in_progress)
+    {
+        level.forbidden_weapon_used = true;
+    }
+    else
+    {
+        iprintln("^2REMAIN IN THE ZONE");
+    }
+    
+    // Watch if players remain in zone
+    while (current_round == level.round_number && !level.forbidden_weapon_used)
+    {
+        in_zone = 0;
+        foreach (player in level.players)
+        {
+            current_zone = player get_current_zone();
+            // Count up players in the right zone
+            if (current_zone == zone1 || current_zone == zone2 || current_zone == zone3 || current_zone == zone4 || current_zone == zone5 || current_zone == zone6 || current_zone == zone7 || current_zone == zone8)
+            {
+                in_zone++;
+            }  
+        }
+        // Clear trigger if players back in zone
+        if (in_zone == level.players.size)
+        {
+            ConditionsInProgress(true);
+            flag_clear("out_of_zone");
+            if (player.threaded_already)
+            {
+                player.threaded_already = false;
+            }
+        }
+        // Trigger an event if player left zone
+        else
+        {
+            ConditionsInProgress(false);
+            flag_set("out_of_zone");
+            if (!player.threaded_already)
+            {
+                player thread PlayerInZone();
+                player.threaded_already = true;
+            }
+        }
+        wait 0.05;
+    }
+    wait 0.1;
+    // For hud formatting
+    if (!level.forbidden_weapon_used)
+    {
+        ConditionsMet(true);
+    }
+}
+
+PlayerInZone()
+// dsc
+{
+    while (1)
+    {
+        self iprintln("^5GET TO THE ZONE");
+        self iprintln("YOU got 5 SECONDS");
+        wait 1;
+        if (flag("out_of_zone"))
+        {
+            self iprintln("4");
+        }
+        else
+        {
+            break;
+        }
+        wait 0.5;
+        if (!flag("out_of_zone"))
+        {
+            break;
+        }
+        wait 0.5;
+
+        if (flag("out_of_zone"))
+        {
+            self iprintln("^33");
+        }
+        else
+        {
+            break;
+        }
+        wait 0.5;
+        if (!flag("out_of_zone"))
+        {
+            break;
+        }
+        wait 0.5;
+
+        if (flag("out_of_zone"))
+        {
+            self iprintln("^32");
+        }
+        else
+        {
+            break;
+        }
+        wait 0.5;
+        if (!flag("out_of_zone"))
+        {
+            break;
+        }
+        wait 0.5;
+
+        if (flag("out_of_zone"))
+        {
+            self iprintln("^21");
+        }
+        else
+        {
+            break;
+        }
+        wait 0.5;
+        if (!flag("out_of_zone"))
+        {
+            break;
+        }
+        wait 0.5;
+
+        if (flag("out_of_zone"))
+        {
+            self iprintln("^20");
+            level.forbidden_weapon_used = true;
+            break;
+        }
+        break;
+    }
 }
