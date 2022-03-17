@@ -12,7 +12,7 @@ Patch that emulates gauntlet gamemode from BO4 on BO2 Origins
 8. activate generator 4.
 9. only use the MP-40
 10. crouch only
-11. have at least 2 perks at the end of the round
+11. Don't buy anything
 12. have at least one staff upgraded at the end of the round
 13. survive a round with super-sprinters
 14. don't jump
@@ -21,13 +21,13 @@ Patch that emulates gauntlet gamemode from BO4 on BO2 Origins
 17. dig up 7 piles (in coop 2 per player)
 18. Time is faster
 19. only use the MP-40 
-20. obtain a weapon from the mystery box and pack-a-punch it
+20. Protect church
 21. have at least 5 perks at the end of the round
-22. survive the whole round on the tank
+22. Perks are offline
 23. buy and only use the non-packed stg
 24. open all doors
 25. don't aim down sights
-26. (bo3)only use the sheiva (bo2) only use the m14
+26. only use the m14
 27. only kill zombies indoors
 28. don't get any drops
 29. only kill zombies in mud

@@ -43,9 +43,14 @@ OnPlayerConnect()
     level thread TimerHud();
     level thread BetaHud(3);
     level thread SetupPanzerRound(16);
+    
+    // For debugging
     // level thread DebugHud(true);
-
-    // level waittill ("start_of_round");
+    if (level.wait_for_round)
+    {
+        iPrintLn("Waiting");
+        level waittill ("start_of_round");
+    }
     while (1)
     {
         // Activate generator 1
@@ -109,10 +114,10 @@ OnPlayerConnect()
             level thread DisableMovement(10);
         }
 
-        // Have two perks at the end of the round
+        // Don't buy anything
         else if (level.round_number == 11)
         {
-            level thread WatchPerks(11, 2);
+            level thread BuyNothing(11);
         }
 
         // Have at least one upgraded staff at the end of the round
@@ -187,7 +192,13 @@ OnPlayerSpawned()
     level endon( "game_ended" );
 	self endon( "disconnect" );
 
-    level.round_number = 20; // For debugging
+    // For debugging
+    level.wait_for_round = false;
+    level.round_number = 11;
+    if (level.round_number != 1)
+    {
+        wait_for_round = true;
+    }
 
 	self waittill( "spawned_player" );
 
@@ -317,6 +328,7 @@ ForbiddenWeaponWatcher()
         if (level.forbidden_weapon_used)
         {
             EndGame();
+            break;
         }
         wait 0.05;
     }
@@ -458,7 +470,7 @@ GauntletHud(challenge)
     }
     else if (challenge == 11)
     {
-        gauntlet_hud settext("Own two perks at the end of the round");
+        gauntlet_hud settext("Don't buy anything");
     }
     else if (challenge == 12)
     {
@@ -1829,5 +1841,76 @@ PlayerInZone()
             break;
         }
         break;
+    }
+}
+
+BuyNothing(challenge)
+// Function sets up watching for spending points
+{
+    level endon("end_game");
+    self endon("disconnect");
+
+    ConditionsInProgress(true);
+    self thread GauntletHud(challenge);
+
+    init_score = 0;
+    init_downs = 0;
+    init_deaths = 0;
+
+    foreach (player in level.players)
+    {
+        init_score += player.score;
+        init_downs += player.downs;
+        init_deaths += player.pers["deaths"];
+    }
+
+    self thread WatchPointsLoss(init_score, init_downs, init_deaths);
+
+    level waittill ("end_of_round");
+    wait 0.1;
+    ConditionsMet(true);
+}
+
+WatchPointsLoss(init_score, init_downs, init_deaths)
+// Function controls spending points, will end game if points are spent (will not end if points are lost to downs or bleeds)
+{
+    prev_score = init_score;
+    prev_downs = init_downs;
+    prev_deaths = init_deaths;
+    current_score = 0;
+    current_downs = 0;
+    current_deaths = 0;
+
+    while (1)
+    {
+        current_score = 0;
+        current_downs = 0;
+        current_deaths = 0;
+
+        // Get current points and downs
+        foreach (player in level.players)
+        {
+            current_score += player.score;
+            current_downs += player.downs;
+            current_deaths += player.pers["deaths"];
+        }
+
+        // Scan for downs and bleeds
+        if ((current_downs > prev_downs) || current_deaths > prev_deaths)
+        {
+            prev_score = current_score;
+        }
+
+        // Scan for points
+        if (current_score < prev_score)
+        {
+            level.forbidden_weapon_used = true;
+            break;
+        }
+
+        prev_score = current_score;
+        prev_downs = current_downs;
+        prev_deaths = current_deaths;
+        wait 0.05;
     }
 }
