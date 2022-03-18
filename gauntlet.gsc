@@ -186,8 +186,15 @@ OnPlayerConnect()
         // All perks are off
         else if (level.round_number == 22)
         {
-            ShutDownPerk(22, "all");
+            level thread ShutDownPerk(22, "all");
         }
+
+        // Only kill with unpacked stg
+        else if (level.round_number == 23)
+        {
+            level thread CheckUsedWeapon(23);
+            level thread WatchPlayerStat(23, "grenade_kills");
+        }   
 
         level waittill("start_of_round"); // Careful not to add this inside normal fucntions
 
@@ -202,7 +209,7 @@ OnPlayerSpawned()
 
     // For debugging
     level.wait_for_round = false;
-    level.round_number = 22;
+    level.round_number = 23;
     if (level.round_number != 1)
     {
         wait_for_round = true;
@@ -531,6 +538,10 @@ GauntletHud(challenge)
     {
         gauntlet_hud settext("All perks are offline");
     }
+    else if (challenge == 23)
+    {
+        gauntlet_hud settext("Only kill with unpacked STG44");
+    }
 
     while (level.round_number == challenge)
     {
@@ -821,7 +832,7 @@ WatchPlayerStat(challenge, stat_1)
         i = 0;
         foreach (stat in rnd_stat_array)
         {
-            if (challenge == 5 || challenge == 9 || challenge == 19)
+            if (challenge == 5 || challenge == 9 || challenge == 19 || challenge == 23)
             {
                 // Change to 1 if stat is bigger
                 if (stat > beg_stat_array[i])
@@ -928,7 +939,7 @@ WatchPlayerStat(challenge, stat_1)
 
         // Determine state of the challenge
         // Flow of the challenge 9 already defined in CheckUsedWeapon()
-        if (challenge == 9 || challenge == 19)
+        if (challenge == 9 || challenge == 19 || challenge == 23)
         {
             if (proper_boxers > 0)
             {
@@ -1356,16 +1367,26 @@ CheckUsedWeapon(challenge)
     while (current_round == level.round_number)
     {
         level waittill_any ("zombie_killed", "end_of_round");
-        // iprintln(level.weapon_used);
+        iprintln(level.weapon_used);
         proper_gun_used = false;
 
-        if (level.weapon_used == "mp40_zm" || level.weapon_used == "mp40_stalker_zm" || level.weapon_used == "mp40_upgraded_zm" || level.weapon_used == "mp40_stalker_upgraded_zm" || level.weapon_used == "none")
+        if (challenge == 9 || challenge == 19)
         {
+            print("???");
+            if (level.weapon_used == "mp40_zm" || level.weapon_used == "mp40_stalker_zm" || level.weapon_used == "mp40_upgraded_zm" || level.weapon_used == "mp40_stalker_upgraded_zm" || level.weapon_used == "none")
+            {
+                proper_gun_used = true;
+            }
+        }
+        else if ((level.weapon_used == "mp44_zm" || level.weapon_used == "none") && challenge == 23)
+        {
+            print("!!!");
             proper_gun_used = true;
         }
 
         if (!proper_gun_used || flag("env_kill"))
         {
+            print("...");
             level.forbidden_weapon_used = true;
         }
 
@@ -1382,11 +1403,8 @@ CheckUsedWeapon(challenge)
 actor_killed_override( einflictor, attacker, idamage, smeansofdeath, sweapon, vdir, shitloc, psoffsettime )
 // Override used to pass weapon used to kill zombies to level variable alongside level notify
 {
-    if (level.round_number == 9)
-    {
-        level.weapon_used = sweapon;
-        level notify ("zombie_killed");
-    }
+    level.weapon_used = sweapon;
+    level notify ("zombie_killed");
 
     if ( game["state"] == "postgame" )
         return;
