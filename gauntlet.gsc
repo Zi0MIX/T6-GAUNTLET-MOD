@@ -16,6 +16,8 @@
 #include maps/mp/zombies/_zm_game_module;
 #include maps/mp/zombies/_zm_net;
 #include maps/mp/zombies/_zm_ai_mechz;
+#include maps/mp/zombies/_zm_perks;
+#include maps/mp/zombies/_zm_perk_random;
 
 // main()
 // {
@@ -41,7 +43,7 @@ OnPlayerConnect()
 
     level thread EndGameWatcher();
     level thread TimerHud();
-    level thread BetaHud(3);
+    level thread BetaHud(4);
     level thread SetupPanzerRound(16);
     
     // For debugging
@@ -181,6 +183,12 @@ OnPlayerConnect()
             level thread WatchPerks(21, 5);
         }
 
+        // All perks are off
+        else if (level.round_number == 22)
+        {
+            ShutDownPerk(22, "all");
+        }
+
         level waittill("start_of_round"); // Careful not to add this inside normal fucntions
 
         wait 0.05;
@@ -194,7 +202,7 @@ OnPlayerSpawned()
 
     // For debugging
     level.wait_for_round = false;
-    level.round_number = 11;
+    level.round_number = 22;
     if (level.round_number != 1)
     {
         wait_for_round = true;
@@ -518,6 +526,10 @@ GauntletHud(challenge)
     else if (challenge == 21)
     {
         gauntlet_hud settext("Own five perks at the end of the round");
+    }
+    else if (challenge == 22)
+    {
+        gauntlet_hud settext("All perks are offline");
     }
 
     while (level.round_number == challenge)
@@ -1913,4 +1925,71 @@ WatchPointsLoss(init_score, init_downs, init_deaths)
         prev_deaths = current_deaths;
         wait 0.05;
     }
+}
+
+ShutDownPerk(challenge, perk, fizz_off)
+{
+    self thread GauntletHud(challenge);
+    ConditionsInProgress(true);
+    fizz_array = getentarray("random_perk_machine", "targetname");
+    current_round = level.round_number;
+
+    if (!isdefined(fizz_off))
+    {
+        fizz_off = true;
+    }
+
+    if (fizz_off)
+    {
+        i = 0;
+        foreach (fizz in fizz_array)
+        {
+            if (fizz.is_current_ball_location == 1)
+            {
+                fizz.is_current_ball_location = 0;
+                fizz conditional_power_indicators();
+                fizz hidepart("j_ball");
+                reenable_fizz_id = i;
+            }
+            i++;
+        }
+    }
+
+    while (current_round == level.round_number)
+    {
+        if (perk == "all")
+        {
+            perk_pause_all_perks();
+            perk_pause("specialty_rof");
+            perk_pause("specialty_flakjacket");
+            perk_pause("specialty_grenadepulldeath");
+        }
+        else
+        {
+            perk_pause(perk);
+        }
+        wait 0.05;
+    }
+
+    wait 0.1;
+
+    if (fizz_off)
+    {
+        i = 0;
+        foreach (fizz in fizz_array)
+        {
+            if (i == reenable_fizz_id)
+            {
+                fizz.is_current_ball_location = 1;
+                fizz conditional_power_indicators();
+                fizz showpart("j_ball");
+            }
+            i++;
+        }
+    }
+    perk_unpause_all_perks();
+    perk_unpause("specialty_rof");
+    perk_unpause("specialty_flakjacket");
+    perk_unpause("specialty_grenadepulldeath");
+    ConditionsMet(true);
 }
