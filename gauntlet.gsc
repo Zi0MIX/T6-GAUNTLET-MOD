@@ -52,8 +52,8 @@ OnPlayerConnect()
     // level thread DebugHud(true);
     if (level.wait_for_round)
     {
-        iPrintLn("Waiting");
-        level waittill ("start_of_round");
+        // iPrintLn("Waiting");
+        // level waittill ("start_of_round");
     }
     while (1)
     {
@@ -217,7 +217,7 @@ OnPlayerSpawned()
 
     // For debugging
     level.wait_for_round = false;
-    level.round_number = 24;
+    // level.round_number = 24;
     if (level.round_number != 1)
     {
         wait_for_round = true;
@@ -227,7 +227,7 @@ OnPlayerSpawned()
 
     foreach (player in level.players)
     {
-        player.score = 50005; // For debugging
+        player.score = 505; // For debugging
     }
 
 	flag_wait( "initial_blackscreen_passed" );
@@ -528,7 +528,7 @@ GauntletHud(challenge)
     }
     else if (challenge == 18)
     {
-        gauntlet_hud settext("Everything is faster");
+        gauntlet_hud settext("Time is faster");
     }
     else if (challenge == 19)
     {
@@ -2072,7 +2072,7 @@ SprintWatcher(challenge)
                 player iPrintLn("^1Move!!!");
                 player dodamage(player.maxhealth / 25, player.origin);
             }
-            iPrintLn(player.health);    // For debugging
+            // iPrintLn(player.health);    // For debugging
 
             // Reset the value if it's too small or too big
             if (player.isnt_moving < 0 || player.isnt_moving > 20)
