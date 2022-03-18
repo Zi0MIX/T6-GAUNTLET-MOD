@@ -1,37 +1,37 @@
 # Bo2OriginsGauntlet
 Patch that emulates gauntlet gamemode from BO4 on BO2 Origins
 
-# Challenge list (init):
-1. activate generator 1.
-2. only use the knife.
-3. stand in one spot.
-4. own a perk.
-5. obtain a weapon from the mystery box.
-6. dig 3 piles (in coop 1 per player).
-7. knife kill 6 zombies (12 for coop).
-8. activate generator 4.
-9. only use the MP-40
-10. crouch only
-11. Don't buy anything
-12. have at least one staff upgraded at the end of the round
-13. survive a round with super-sprinters
-14. don't jump
-15. activate all generators
-16. survive the round with panzers
-17. dig up 7 piles (in coop 2 per player)
-18. Time is faster
-19. only use the MP-40 
-20. Protect church
-21. have at least 5 perks at the end of the round
-22. Perks are offline
-23. buy and only use the non-packed stg
-24. open all doors
-25. don't aim down sights
+# Challenge list (beta):
+1. Activate generator 1.
+2. Kill only with melee attacks.
+3. Stand still.
+4. Own a perk at the end of the round.
+5. Pull a weapon from the mystery box.
+6. Solo - Dig up 3 piles / Coop - Dig up a pile.
+7. Solo - Kill 6 zombies with melee attacks / Coop - Kill 12 zombies total with melee attacks.
+8. Own Jugger-Nog by the end of the round.
+9. Only kill with MP-40.
+10. Crouch only.
+11. Don't buy anything.
+12. Upgrade a staff.
+13. Survive round with super-sprinters.
+14. No jumping.
+15. Activate all generators.
+16. Survive round with panzers.
+17. Solo - Dig up 7 piles / Coop - Dig up 2 piles.
+18. Time is faster.
+19. Only kill with MP-40.
+20. Protect church.
+21. Own five perks at the end of the round.
+22. All perks are offline.
+23. Only kill with unpacked STG44.
+24. Move of get hurt.
+25. 
 26. only use the m14
 27. only kill zombies indoors
 28. don't get any drops
 29. only kill zombies in mud
-30. you can only kill zombies using melee attacks 
+30. 
 
 # Notes
 - Shield excluded from melee only, as it allows for staff abuse
