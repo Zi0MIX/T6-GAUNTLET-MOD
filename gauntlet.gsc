@@ -13,11 +13,13 @@
 #include maps/mp/zm_tomb_tank;
 #include maps/mp/zm_tomb_utility;
 #include maps/mp/gametypes_zm/_tweakables;
+#include maps/mp/gametypes_zm/_shellshock;
 #include maps/mp/zombies/_zm_game_module;
 #include maps/mp/zombies/_zm_net;
 #include maps/mp/zombies/_zm_ai_mechz;
 #include maps/mp/zombies/_zm_perks;
 #include maps/mp/zombies/_zm_perk_random;
+#include maps/mp/zombies/_zm_laststand;
 
 // main()
 // {
@@ -196,6 +198,12 @@ OnPlayerConnect()
             level thread WatchPlayerStat(23, "grenade_kills");
         }   
 
+        // Take damage if not moving
+        else if (level.round_number == 24)
+        {
+            level thread SprintWatcher(24);
+        }
+
         level waittill("start_of_round"); // Careful not to add this inside normal fucntions
 
         wait 0.05;
@@ -209,7 +217,7 @@ OnPlayerSpawned()
 
     // For debugging
     level.wait_for_round = false;
-    level.round_number = 23;
+    level.round_number = 24;
     if (level.round_number != 1)
     {
         wait_for_round = true;
@@ -431,7 +439,7 @@ GauntletHud(challenge)
     gauntlet_hud settext("Origins gauntlet");
     if (challenge == 1)
     {
-        gauntlet_hud settext("Turn on Generator 1 by the end of the round");
+        gauntlet_hud settext("Activate generator 1");
     }
     else if (challenge == 2)
     {
@@ -447,17 +455,17 @@ GauntletHud(challenge)
     }
     else if (challenge == 5)
     {
-        gauntlet_hud settext("Pull a weapon from mystery box");
+        gauntlet_hud settext("Pull a weapon from the mystery box");
     }
     else if (challenge == 6)
     {
         if (level.players.size == 1)
         {
-            gauntlet_hud settext("Dig 3 piles");
+            gauntlet_hud settext("Dig up 3 piles");
         }
         else
         {
-            gauntlet_hud settext("Dig a pile");
+            gauntlet_hud settext("Dig up a pile");
         }
     }
     else if (challenge == 7)
@@ -489,7 +497,7 @@ GauntletHud(challenge)
     }
     else if (challenge == 12)
     {
-        gauntlet_hud settext("Upgrade one staff");
+        gauntlet_hud settext("Upgrade a staff");
     }
     else if (challenge == 13)
     {
@@ -511,11 +519,11 @@ GauntletHud(challenge)
     {
         if (level.players.size == 1)
         {
-            gauntlet_hud settext("Dig 7 piles");
+            gauntlet_hud settext("Dig up 7 piles");
         }
         else
         {
-            gauntlet_hud settext("Dig 2 piles");
+            gauntlet_hud settext("Dig up 2 piles");
         }
     }
     else if (challenge == 18)
@@ -541,6 +549,10 @@ GauntletHud(challenge)
     else if (challenge == 23)
     {
         gauntlet_hud settext("Only kill with unpacked STG44");
+    }
+    else if (challenge == 24)
+    {
+        gauntlet_hud settext("Move or get hurt");
     }
 
     while (level.round_number == challenge)
@@ -1946,9 +1958,14 @@ WatchPointsLoss(init_score, init_downs, init_deaths)
 }
 
 ShutDownPerk(challenge, perk, fizz_off)
+// Function turns selected or all perks off for the entire round and turns them on afterwards
 {
+    level endon("end_game");
+    self endon("disconnect");
+    
     self thread GauntletHud(challenge);
     ConditionsInProgress(true);
+    
     fizz_array = getentarray("random_perk_machine", "targetname");
     current_round = level.round_number;
 
@@ -2009,5 +2026,63 @@ ShutDownPerk(challenge, perk, fizz_off)
     perk_unpause("specialty_rof");
     perk_unpause("specialty_flakjacket");
     perk_unpause("specialty_grenadepulldeath");
+    ConditionsMet(true);
+}
+
+SprintWatcher(challenge)
+// Function deals damage to players if they don't move
+{
+    level endon("end_game");
+    level endon("start_of_round");  // useful here :)
+    self endon("disconnect");
+    
+    self thread GauntletHud(challenge);
+    ConditionsInProgress(true);
+    
+    current_round = level.round_number;
+
+    // Define player vars
+    foreach (player in level.players)
+    {
+        player.isnt_moving = 0;
+    }
+
+    while (current_round == level.round_number)
+    {
+        foreach (player in level.players)
+        {
+            // Observe if players move or not
+            if (player.player_is_moving == 0)
+            {
+                player.isnt_moving++;
+            }
+            else if (player.player_is_moving == 1)
+            {
+                player.isnt_moving = 0;
+            }
+
+            // Do damage if players don't move, kill if they don't move for too long
+            if (player.isnt_moving > 20 && !player_is_in_laststand())
+            {
+                player dodamage(player.maxhealth, player.origin);
+                player.isnt_moving = 0;
+            }
+            else if (player.isnt_moving > 4 && !player_is_in_laststand())
+            {
+                player iPrintLn("^1Move!!!");
+                player dodamage(player.maxhealth / 25, player.origin);
+            }
+            iPrintLn(player.health);    // For debugging
+
+            // Reset the value if it's too small or too big
+            if (player.isnt_moving < 0 || player.isnt_moving > 20)
+            {
+                player.isnt_moving = 0;
+            }
+            // print(player.isnt_moving);   // For debugging
+        }
+        wait 0.25;
+    }
+    wait 0.1;
     ConditionsMet(true);
 }
