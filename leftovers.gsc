@@ -178,6 +178,20 @@ WeaponSizeWatcher()
     }
 }
 
+// All 3 have to be emptied otherwise they somehow work lol
+// player_too_many_weapons_monitor_takeaway_sequence_override()
+// {
+// }
+
+// player_too_many_weapons_monitor_takeaway_simultaneous_override(primary_weapons_to_take)
+// {
+// }
+
+// player_too_many_weapons_monitor_override()
+// {
+// }
+
+
 // ActorKilledTracked(einflictor, attacker, idamage, smeansofdeath, sweapon, vdir, shitloc, psoffsettime)
 // {
 //     if ( game["state"] == "postgame" )

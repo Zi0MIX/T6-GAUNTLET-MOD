@@ -22,13 +22,13 @@
 #include maps/mp/zombies/_zm_laststand;
 #include maps/mp/zombies/_zm_magicbox;
 #include maps/mp/zombies/_zm_score;
+#include maps/mp/zombies/_zm_powerups;
 #include maps/mp/zombies/_zm;
 
 main()
 {
-    // replaceFunc(maps/mp/zombies/_zm::player_too_many_weapons_monitor_takeaway_sequence, ::player_too_many_weapons_monitor_takeaway_sequence_override);
-    // replaceFunc(maps/mp/zombies/_zm::player_too_many_weapons_monitor_takeaway_simultaneous, ::player_too_many_weapons_monitor_takeaway_simultaneous_override);
-    // replaceFunc(maps/mp/zombies/_zm::player_too_many_weapons_monitor, ::player_too_many_weapons_monitor_override);
+    // Pluto QoL changes
+    replaceFunc(maps/mp/zombies/_zm_powerups::full_ammo_powerup, ::full_ammo_powerup_override);
 }
 
 init()
@@ -1908,6 +1908,7 @@ BuyNothing(challenge)
 // Function sets up watching for spending points
 {
     level endon("end_game");
+    level endon("start_of_round");
     self endon("disconnect");
 
     ConditionsInProgress(true);
@@ -1940,8 +1941,9 @@ WatchPointsLoss(init_score, init_downs, init_deaths)
     current_score = 0;
     current_downs = 0;
     current_deaths = 0;
+    current_round = level.round_number;
 
-    while (1)
+    while (current_round == level.round_number)
     {
         current_score = 0;
         current_downs = 0;
@@ -2177,6 +2179,7 @@ GunGame(challenge)
     self thread RandomizeGuns();
     self thread NukeExtraWeapon();
     self thread WallbuysWatcher();
+    self thread FillStolenGuns();   // Works?
 
     level waittill ("end_of_round");
 
@@ -2393,15 +2396,64 @@ NukeExtraWeapon()
     }
 }
 
-// All 3 have to be emptied otherwise they somehow work lol
-player_too_many_weapons_monitor_takeaway_sequence_override()
+FillStolenGuns()
+// Function will fill player guns during gungame, relies on replacefunc
 {
+    level endon ("end_of_round");
+
+    level waittill ("got_a_max");
+    foreach (player in level.players)
+    {
+        if (isdefined(player.stolen_ammo_1))
+        {
+            player.stolen_ammo_1 = weaponmaxammo(player.stolen_weapon_1);
+        }
+        if (isdefined(player.stolen_ammo_2))
+        {
+            player.stolen_ammo_2 = weaponmaxammo(player.stolen_weapon_2);
+        }
+        if (isdefined(player.stolen_mule_ammo))
+        {
+            player.stolen_mule_ammo = weaponmaxammo(player.stolen_mule_weapon);
+        }
+    }
 }
 
-player_too_many_weapons_monitor_takeaway_simultaneous_override(primary_weapons_to_take)
+full_ammo_powerup_override(drop_item, player)
+// Override - notify level if max is obtained
 {
-}
+    level notify ("got_a_max");
+    players = get_players( player.team );
 
-player_too_many_weapons_monitor_override()
-{
+    if ( isdefined( level._get_game_module_players ) )
+        players = [[ level._get_game_module_players ]]( player );
+
+    for ( i = 0; i < players.size; i++ )
+    {
+        if ( players[i] maps\mp\zombies\_zm_laststand::player_is_in_laststand() )
+            continue;
+
+        primary_weapons = players[i] getweaponslist( 1 );
+        players[i] notify( "zmb_max_ammo" );
+        players[i] notify( "zmb_lost_knife" );
+        players[i] notify( "zmb_disable_claymore_prompt" );
+        players[i] notify( "zmb_disable_spikemore_prompt" );
+
+        for ( x = 0; x < primary_weapons.size; x++ )
+        {
+            if ( level.headshots_only && is_lethal_grenade( primary_weapons[x] ) )
+                continue;
+
+            if ( isdefined( level.zombie_include_equipment ) && isdefined( level.zombie_include_equipment[primary_weapons[x]] ) )
+                continue;
+
+            if ( isdefined( level.zombie_weapons_no_max_ammo ) && isdefined( level.zombie_weapons_no_max_ammo[primary_weapons[x]] ) )
+                continue;
+
+            if ( players[i] hasweapon( primary_weapons[x] ) )
+                players[i] givemaxammo( primary_weapons[x] );
+        }
+    }
+
+    level thread full_ammo_on_hud( drop_item, player.team );
 }
