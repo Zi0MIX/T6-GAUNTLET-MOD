@@ -48,7 +48,7 @@ OnPlayerConnect()
 
 	level waittill("initial_players_connected");
     level thread SetDvars();
-    // level thread DevDebug("raygun_mark2_upgraded_zm");   // For debugging
+    // level thread DevDebug("raygun_mark2_upgraded_zm", 9);   // For debugging
 
     flag_wait("initial_blackscreen_passed");
 
@@ -401,14 +401,14 @@ ConditionsInProgress(bool)
     return;
 }
 
-DevDebug(weapon)
+DevDebug(weapon, round)
 // Function to set up debugging vars and items
 {
     level endon( "game_ended" );
 	self endon( "disconnect" );
 
     level.wait_for_round = true;
-    level.round_number = 27;
+    level.round_number = round;
 
     level waittill ("start_of_round");
 
@@ -1438,7 +1438,7 @@ CheckUsedWeapon(challenge)
     m14_array = array("m14_zm", "m14_upgraded_zm");
     while (current_round == level.round_number)
     {
-        level waittill_any ("zombie_killed", "end_of_round");
+        level waittill_any ("zombie_killed", "end_of_round", "env_kill");
 
         // iPrintLn(level.conditions_in_progress);
         // iPrintLn(level.conditions_met);
