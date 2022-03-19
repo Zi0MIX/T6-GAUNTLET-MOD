@@ -48,7 +48,7 @@ OnPlayerConnect()
 
 	level waittill("initial_players_connected");
     level thread SetDvars();
-    level thread DevDebug("raygun_mark2_upgraded_zm");   // For debugging
+    // level thread DevDebug("raygun_mark2_upgraded_zm");   // For debugging
 
     flag_wait("initial_blackscreen_passed");
 
