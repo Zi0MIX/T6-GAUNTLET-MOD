@@ -44,7 +44,8 @@ OnPlayerConnect()
 {
 	level waittill("connecting", player );	
 
-	player thread OnPlayerSpawned();
+    level thread DevDebug("m14_upgraded_zm");        // For debugging
+	// player thread OnPlayerSpawned();
 
 	level waittill("initial_players_connected");
     level thread SetDvars();
@@ -63,6 +64,7 @@ OnPlayerConnect()
         iPrintLn("Waiting");
         level waittill ("start_of_round");
     }
+
     while (1)
     {
         // Activate generator 1
@@ -218,6 +220,13 @@ OnPlayerConnect()
             level thread GunGame(25);
         }
 
+        // Only kill with m14
+        else if (level.round_number == 26)
+        {
+            level thread CheckUsedWeapon(26);
+            level thread WatchPlayerStat(26, "grenade_kills");
+        }  
+
         level waittill("start_of_round"); // Careful not to add this inside normal fucntions
 
         wait 0.05;
@@ -229,24 +238,9 @@ OnPlayerSpawned()
     level endon( "game_ended" );
 	self endon( "disconnect" );
 
-    // For debugging
-    level.wait_for_round = true;
-    level.round_number = 24;
-
 	self waittill( "spawned_player" );
 
-    foreach (player in level.players)
-    {
-        player.score = 50005; // For debugging
-    }
-
 	flag_wait( "initial_blackscreen_passed" );
-
-    // if( level.player_out_of_playable_area_monitor && IsDefined( level.player_out_of_playable_area_monitor ) )
-	// {
-	// 	self notify( "stop_player_out_of_playable_area_monitor" );
-	// }
-	// level.player_out_of_playable_area_monitor = 0;
 }
 
 SetDvars()
@@ -395,6 +389,32 @@ ConditionsInProgress(bool)
         level.conditions_met = false;
     }
     return;
+}
+
+DevDebug(weapon)
+// Function to set up debugging vars and items
+{
+    level endon( "game_ended" );
+	self endon( "disconnect" );
+
+    level.wait_for_round = true;
+    level.round_number = 26;
+
+    level waittill ("start_of_round");
+
+    foreach (player in level.players)
+    {
+        player giveWeapon(weapon);
+        player switchtoweapon(weapon);
+        player givestartammo(weapon);
+        player.score = 50005;
+    }
+
+    if( level.player_out_of_playable_area_monitor && IsDefined( level.player_out_of_playable_area_monitor ) )
+	{
+		self notify( "stop_player_out_of_playable_area_monitor" );
+	}
+	level.player_out_of_playable_area_monitor = 0;
 }
 
 ConditionsMet(bool)
@@ -571,6 +591,10 @@ GauntletHud(challenge)
     else if (challenge == 25)
     {
         gauntlet_hud settext("Weapons change all the time");
+    }
+    else if (challenge == 26)
+    {
+        gauntlet_hud settext("Only kill with M14");
     }
 
     while (level.round_number == challenge)
@@ -969,7 +993,7 @@ WatchPlayerStat(challenge, stat_1)
 
         // Determine state of the challenge
         // Flow of the challenge 9 already defined in CheckUsedWeapon()
-        if (challenge == 9 || challenge == 19 || challenge == 23)
+        if (challenge == 9 || challenge == 19 || challenge == 23 || challenge == 26)
         {
             if (proper_boxers > 0)
             {
@@ -1393,30 +1417,41 @@ CheckUsedWeapon(challenge)
     self thread GauntletHud(challenge);
     self thread EnvironmentKills();
     ConditionsInProgress(true);
+
     current_round = level.round_number;
+    mp40_array = array("mp40_zm", "mp40_stalker_zm", "mp40_upgraded_zm", "mp40_stalker_upgraded_zm");
+    m14_array = array("m14_zm", "m14_upgraded_zm");
     while (current_round == level.round_number)
     {
         level waittill_any ("zombie_killed", "end_of_round");
-        iprintln(level.weapon_used);
+
+        // iPrintLn(level.conditions_in_progress);
+        // iPrintLn(level.conditions_met);
+        // iprintln(level.weapon_used);
         proper_gun_used = false;
 
-        if (challenge == 9 || challenge == 19)
+        if (level.weapon_used == "none")
         {
-            print("???");
-            if (level.weapon_used == "mp40_zm" || level.weapon_used == "mp40_stalker_zm" || level.weapon_used == "mp40_upgraded_zm" || level.weapon_used == "mp40_stalker_upgraded_zm" || level.weapon_used == "none")
-            {
-                proper_gun_used = true;
-            }
+            proper_gun_used = true;
         }
-        else if ((level.weapon_used == "mp44_zm" || level.weapon_used == "none") && challenge == 23)
+
+        else if ((challenge == 9 || challenge == 19) && isinarray(mp40_array, level.weapon_used))
         {
-            print("!!!");
+            // if (level.weapon_used == "mp40_zm" || level.weapon_used == "mp40_stalker_zm" || level.weapon_used == "mp40_upgraded_zm" || level.weapon_used == "mp40_stalker_upgraded_zm")
+            proper_gun_used = true;
+        }
+        else if (level.weapon_used == "mp44_zm" && challenge == 23)
+        {
+            proper_gun_used = true;
+        }
+
+        else if (isinarray(m14_array, level.weapon_used) && challenge == 26)
+        {
             proper_gun_used = true;
         }
 
         if (!proper_gun_used || flag("env_kill"))
         {
-            print("...");
             level.forbidden_weapon_used = true;
         }
 
@@ -2431,7 +2466,9 @@ full_ammo_powerup_override(drop_item, player)
     for ( i = 0; i < players.size; i++ )
     {
         if ( players[i] maps\mp\zombies\_zm_laststand::player_is_in_laststand() )
+        {
             continue;
+        }
 
         primary_weapons = players[i] getweaponslist( 1 );
         players[i] notify( "zmb_max_ammo" );
@@ -2441,17 +2478,26 @@ full_ammo_powerup_override(drop_item, player)
 
         for ( x = 0; x < primary_weapons.size; x++ )
         {
-            if ( level.headshots_only && is_lethal_grenade( primary_weapons[x] ) )
+            pulled_weapon = primary_weapons[x];
+            if ( level.headshots_only && is_lethal_grenade( pulled_weapon ) )
+            {
                 continue;
+            }
 
-            if ( isdefined( level.zombie_include_equipment ) && isdefined( level.zombie_include_equipment[primary_weapons[x]] ) )
+            if ( isdefined( level.zombie_include_equipment ) && isdefined( level.zombie_include_equipment[pulled_weapon] ) )
+            {
                 continue;
+            }
 
-            if ( isdefined( level.zombie_weapons_no_max_ammo ) && isdefined( level.zombie_weapons_no_max_ammo[primary_weapons[x]] ) )
+            if ( isdefined( level.zombie_weapons_no_max_ammo ) && isdefined( level.zombie_weapons_no_max_ammo[pulled_weapon] ) )
+            {
                 continue;
+            }
 
-            if ( players[i] hasweapon( primary_weapons[x] ) )
-                players[i] givemaxammo( primary_weapons[x] );
+            if ( players[i] hasweapon( pulled_weapon ) )
+            {
+                players[i] givemaxammo( pulled_weapon );
+            }
         }
     }
 
