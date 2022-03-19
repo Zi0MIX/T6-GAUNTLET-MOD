@@ -26,9 +26,9 @@
 
 main()
 {
-    replaceFunc(maps/mp/zombies/_zm::player_too_many_weapons_monitor_takeaway_sequence, ::player_too_many_weapons_monitor_takeaway_sequence_override);
-    replaceFunc(maps/mp/zombies/_zm::player_too_many_weapons_monitor_takeaway_simultaneous, ::player_too_many_weapons_monitor_takeaway_simultaneous_override);
-    replaceFunc(maps/mp/zombies/_zm::player_too_many_weapons_monitor, ::player_too_many_weapons_monitor_override);
+    // replaceFunc(maps/mp/zombies/_zm::player_too_many_weapons_monitor_takeaway_sequence, ::player_too_many_weapons_monitor_takeaway_sequence_override);
+    // replaceFunc(maps/mp/zombies/_zm::player_too_many_weapons_monitor_takeaway_simultaneous, ::player_too_many_weapons_monitor_takeaway_simultaneous_override);
+    // replaceFunc(maps/mp/zombies/_zm::player_too_many_weapons_monitor, ::player_too_many_weapons_monitor_override);
 }
 
 init()
@@ -231,7 +231,7 @@ OnPlayerSpawned()
 
     // For debugging
     level.wait_for_round = true;
-    level.round_number = 25;
+    level.round_number = 24;
 
 	self waittill( "spawned_player" );
 
