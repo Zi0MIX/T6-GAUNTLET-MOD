@@ -26,14 +26,14 @@ Patch that emulates gauntlet gamemode from BO4 on BO2 Origins
 22. All perks are offline.
 23. Only kill with unpacked STG44.
 24. Move of get hurt.
-25. Survive with randomized loadout
-26. only use the m14
-27. only kill zombies indoors
+25. Survive with randomized loadout.
+26. Only kill with m14.
+27. Only kill zombies indoors.
 28. don't get any drops
 29. only kill zombies in mud
 30. 
 
 # Notes
 - Shield excluded from melee only, as it allows for staff abuse
-- Drone crashes the game on round 2
-- 25 check if it can be done without replacefunc (it's required to get rid of max weapon monitor)
+- Drone crashes the game on round 2?
+- Workbench in air tunnel is considered outside :(

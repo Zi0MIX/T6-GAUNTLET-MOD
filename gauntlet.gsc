@@ -43,12 +43,12 @@ init()
 OnPlayerConnect()
 {
 	level waittill("connecting", player );	
-
-    level thread DevDebug("raygun_mark2_upgraded_zm");   // For debugging
+    
 	// player thread OnPlayerSpawned();
 
 	level waittill("initial_players_connected");
     level thread SetDvars();
+    level thread DevDebug("raygun_mark2_upgraded_zm");   // For debugging
 
     flag_wait("initial_blackscreen_passed");
 
@@ -254,6 +254,10 @@ SetDvars()
 {
     level endon( "game_ended" );
     
+    foreach(player in level.players)
+    {
+        player.score = 505;
+    }
     level.conditions_met = false;
     level.conditions_in_progress = false;
     self thread LevelDvarsWatcher();
@@ -344,10 +348,10 @@ EndGameWatcher()
             level notify("game_won"); // Need to code that
         }
 
-        else if (level.round_number >= 20) // For beta only
+        else if (level.round_number >= 28) // For beta only
         {
-            // wait 5;
-            // EndGame("you win kappa");
+            wait 5;
+            EndGame("you win kappa");
         }
         
 
@@ -596,7 +600,7 @@ GauntletHud(challenge)
     }
     else if (challenge == 25)
     {
-        gauntlet_hud settext("Weapons change all the time");
+        gauntlet_hud settext("Weapons shuffle");
     }
     else if (challenge == 26)
     {
@@ -604,7 +608,7 @@ GauntletHud(challenge)
     }
     else if (challenge == 27)
     {
-        gauntlet_hud settext("Only kill zombies indoors");
+        gauntlet_hud settext("Only kill zombies while indoors");
     }
 
     while (level.round_number == challenge)
@@ -1557,28 +1561,28 @@ WatchUpgradedStaffs(challenge, number_of_staffs)
         {
             if (staff.charger.is_charged == 1 && staff.weapname == "staff_air_upgraded_zm" && !upgraded_wind)
             {
-                print("wind_upgrade"); // For testing
+                // print("wind_upgrade"); // For testing
                 upgraded_wind = true;
                 upgraded_staffs++;
             }
 
             else if (staff.charger.is_charged == 1 && staff.weapname == "staff_fire_upgraded_zm" && !upgraded_fire)
             {
-                print("fire_upgrade"); // For testing
+                // print("fire_upgrade"); // For testing
                 upgraded_fire = true;
                 upgraded_staffs++;
             }
 
             else if (staff.charger.is_charged == 1 && staff.weapname == "staff_lightning_upgraded_zm" && !upgraded_lighting)
             {
-                print("lighting_upgrade"); // For testing
+                // print("lighting_upgrade"); // For testing
                 upgraded_lighting = true;
                 upgraded_staffs++;
             }
 
             else if (staff.charger.is_charged == 1 && staff.weapname == "staff_water_upgraded_zm" && !upgraded_ice)
             {
-                print("ice_upgrade"); // For testing
+                // print("ice_upgrade"); // For testing
                 upgraded_ice = true;
                 upgraded_staffs++;
             }
@@ -2276,7 +2280,7 @@ RandomizeGuns()
             // Compare against list of disalloed weapons
             if (isinarray(forbidden_weapons_array, weapons[w]))
             {
-                iPrintLn(weapons[w] + " is not allowed");
+                // iPrintLn(weapons[w] + " is not allowed");
                 w = randomInt(max_key);
                 wait 0.05;
                 continue;
@@ -2285,7 +2289,7 @@ RandomizeGuns()
             // Compare against having weapon (weapons with attachments get bypassed for now)
             if (players[i] has_weapon_or_upgrade(weapons[w]))
             {
-                iPrintLn("already have " + weapons[w]);
+                // iPrintLn("already have " + weapons[w]);
                 w = randomInt(max_key);
                 wait 0.05;
                 continue;
@@ -2294,7 +2298,7 @@ RandomizeGuns()
             // Verify if incoming weapon is equipment
             if (is_lethal_grenade(weapons[w]) || is_tactical_grenade(weapons[w]) || is_placeable_mine(weapons[w]) || is_melee_weapon(weapons[w]))
             {
-                iPrintLn(weapons[w] + " is equipment");
+                // iPrintLn(weapons[w] + " is equipment");
                 w = randomInt(max_key);
                 wait 0.05;
                 continue;
@@ -2303,7 +2307,7 @@ RandomizeGuns()
             // Failsafe if weapon key is too high
             if (w > max_key)
             {
-                iPrintLn("key " + w + " is too big");
+                // iPrintLn("key " + w + " is too big");
                 w /= 2;
                 wait 0.05;
                 continue;
@@ -2332,7 +2336,7 @@ RandomizeGuns()
             lucky_roll = false;
             if ((randomInt(100) > 20 && isinarray(shit_weapon_array, weapon)) || randomInt(100) > 66)
             {
-                iPrintLn(weapon + " upgraded");
+                // iPrintLn(weapon + " upgraded");
                 lucky_roll = true;
                 temp_wpn = weapons[w];
                 weapon = level.zombie_weapons[temp_wpn].upgrade_name;
@@ -2343,7 +2347,7 @@ RandomizeGuns()
             {
                 players[i] takeweapon(players[i].last_gungame_weapon);
             }
-            iPrintLn("weapon: " + weapon);  // For debugging
+            // iPrintLn("weapon: " + weapon);  // For debugging
             
             // Give upgraded weapon
             if (lucky_roll)
@@ -2367,7 +2371,7 @@ RandomizeGuns()
         }
         wait 3;
         flag_clear("just_set_weapon");
-        wait 12;
+        wait randomIntRange(10, 15);
     }
 }
 
