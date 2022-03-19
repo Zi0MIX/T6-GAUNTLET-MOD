@@ -20,16 +20,24 @@
 #include maps/mp/zombies/_zm_perks;
 #include maps/mp/zombies/_zm_perk_random;
 #include maps/mp/zombies/_zm_laststand;
+#include maps/mp/zombies/_zm_magicbox;
+#include maps/mp/zombies/_zm_score;
+#include maps/mp/zombies/_zm;
 
-// main()
-// {
-// }
+main()
+{
+    replaceFunc(maps/mp/zombies/_zm::player_too_many_weapons_monitor_takeaway_sequence, ::player_too_many_weapons_monitor_takeaway_sequence_override);
+    replaceFunc(maps/mp/zombies/_zm::player_too_many_weapons_monitor_takeaway_simultaneous, ::player_too_many_weapons_monitor_takeaway_simultaneous_override);
+    replaceFunc(maps/mp/zombies/_zm::player_too_many_weapons_monitor, ::player_too_many_weapons_monitor_override);
+}
 
 init()
 {
 	level thread OnPlayerConnect();
     flag_init("env_kill");
     flag_init("out_of_zone");
+    flag_init("just_set_weapon");
+    flag_init("weapons_cleared");
 }
 
 OnPlayerConnect()
@@ -52,8 +60,8 @@ OnPlayerConnect()
     // level thread DebugHud(true);
     if (level.wait_for_round)
     {
-        // iPrintLn("Waiting");
-        // level waittill ("start_of_round");
+        iPrintLn("Waiting");
+        level waittill ("start_of_round");
     }
     while (1)
     {
@@ -204,6 +212,12 @@ OnPlayerConnect()
             level thread SprintWatcher(24);
         }
 
+        // GunGame
+        else if (level.round_number == 25)
+        {
+            level thread GunGame(25);
+        }
+
         level waittill("start_of_round"); // Careful not to add this inside normal fucntions
 
         wait 0.05;
@@ -216,18 +230,14 @@ OnPlayerSpawned()
 	self endon( "disconnect" );
 
     // For debugging
-    level.wait_for_round = false;
-    // level.round_number = 24;
-    if (level.round_number != 1)
-    {
-        wait_for_round = true;
-    }
+    level.wait_for_round = true;
+    level.round_number = 25;
 
 	self waittill( "spawned_player" );
 
     foreach (player in level.players)
     {
-        player.score = 505; // For debugging
+        player.score = 50005; // For debugging
     }
 
 	flag_wait( "initial_blackscreen_passed" );
@@ -247,7 +257,9 @@ SetDvars()
     level.conditions_met = false;
     level.conditions_in_progress = false;
     self thread LevelDvarsWatcher();
+    level.player_too_many_weapons_monitor = 0;
     level.callbackactorkilled = ::actor_killed_override; // Pointer
+    // level.player_too_many_weapons_monitor_func = ::player_too_many_weapons_monitor_override;
 
     while (1)
     {
@@ -274,6 +286,8 @@ SetDvars()
         level.players_stam = 0;
         level.players_cherry = 0;
         level.players_mulekick = 0;
+
+        level.player_too_many_weapons_monitor = 0;
 
         level.debug_1 = 0;
         level.debug_2 = 0;
@@ -553,6 +567,10 @@ GauntletHud(challenge)
     else if (challenge == 24)
     {
         gauntlet_hud settext("Move or get hurt");
+    }
+    else if (challenge == 25)
+    {
+        gauntlet_hud settext("Weapons change all the time");
     }
 
     while (level.round_number == challenge)
@@ -2085,4 +2103,305 @@ SprintWatcher(challenge)
     }
     wait 0.1;
     ConditionsMet(true);
+}
+
+GunGame(challenge)
+// Function handling randomizing guns throught the round and later returnig actual weapons
+{
+    level endon("end_game");
+    level endon("start_of_round"); 
+    self endon("disconnect");
+    
+    self thread GauntletHud(challenge);
+    ConditionsInProgress(true);
+    
+    current_round = level.round_number;
+    chest_key = randomint(level.chests.size);
+
+    foreach (player in level.players)
+    {
+        // Failsafe for robot
+        if (player getCurrentWeapon() == "falling_hands_tomb_zm")
+        {
+            wait 4;
+        }
+
+        // Disable offhand weapons and pull weapons player has
+        player disableoffhandweapons();
+        weapon_array = player getweaponslistprimaries();
+
+        // Keep info how many guns player had at the beginning
+        player.stolen_weapons = weapon_array.size;
+        player.last_gungame_weapon = "none";
+
+        // Handle mulekick
+        if (player.stolen_weapons == 3 && player hasperk("specialty_additionalprimaryweapon"))
+        {
+            player.stolen_mule_weapon = weapon_array[2];
+            player.stolen_mule_ammo = player getAmmoCount(player.stolen_mule_weapon);
+            player.stolen_mule_clip = player getWeaponAmmoClip(player.stolen_mule_weapon);
+            player takeweapon(player.stolen_mule_weapon);
+            wait 0.05;
+        }
+
+        // Handle 2nd gun
+        if (player.stolen_weapons == 2)
+        {
+            player.stolen_weapon_2 = weapon_array[1];
+            player.stolen_ammo_2 = player getAmmoCount(player.stolen_weapon_2);
+            player.stolen_clip_2 = player getWeaponAmmoClip(player.stolen_weapon_2);
+            player takeweapon(player.stolen_weapon_2);
+            wait 0.05;
+        }
+
+        // Handle 1st gun
+        player.stolen_weapon_1 = player getCurrentWeapon();
+        player.stolen_ammo_1 = player getAmmoCount(player.stolen_weapon_1);
+        player.stolen_clip_1 = player getWeaponAmmoClip(player.stolen_weapon_1);
+        player takeweapon(player.stolen_weapon_1);
+        wait 0.05;
+    }
+
+    // Disable boxes
+    foreach (chest in level.chests)
+    {
+        chest hide_chest();
+        //chest set_magic_box_zbarrier_state( "away" );
+    }
+    wait 0.1;
+
+    // level.get_player_weapon_limit = 1;
+    // level.additionalprimaryweapon_limit = 1;
+
+    // Thread weapon randomizer and watchers
+    self thread RandomizeGuns();
+    self thread NukeExtraWeapon();
+    self thread WallbuysWatcher();
+
+    level waittill ("end_of_round");
+
+    wait 0.1;
+    ConditionsMet(true);
+
+    level.chests[chest_key] show_chest(); // Give box back in random spot
+    // level.get_player_weapon_limit = 2;
+    // level.additionalprimaryweapon_limit = 3;
+    if (flag("just_set_weapon"))
+    {
+        wait 2;
+    }
+
+    foreach (player in level.players)
+    {
+        // Take away given weapon and enable offhand
+        player takeweapon(player.last_gungame_weapon);
+        player enableoffhandweapons();
+
+        // Return 1st weapon
+        if (isdefined(player.stolen_weapon_1))
+        {
+            player giveweapon(player.stolen_weapon_1);
+            player switchtoweapon(player.stolen_weapon_1);
+            player setweaponammostock(player.stolen_weapon_1, player.stolen_ammo_1);
+            player setweaponammoclip(player.stolen_weapon_1, player.stolen_clip_1);
+            skip_other = false;
+        }
+        // Otherwise give mauser
+        else
+        {
+            player giveweapon("c96_zm");
+            skip_other = true;
+        }
+        wait 0.05;
+
+        // Return 2nd wepaon
+        if (!skip_other && player.stolen_weapons >= 2)
+        {
+            player giveweapon(player.stolen_weapon_2);
+            player setweaponammostock(player.stolen_weapon_2, player.stolen_ammo_2);
+            player setweaponammoclip(player.stolen_weapon_2, player.stolen_clip_2);
+
+            // Return 3rd weapon if player has mulekick
+            if (player.stolen_weapons == 3 && isdefined(player.stolen_mule_weapon) && player hasperk("specialty_additionalprimaryweapon"))
+            {
+                player giveweapon(player.stolen_mule_weapon);
+                player setweaponammostock(player.stolen_mule_weapon, player.stolen_mule_ammo);
+                player setweaponammoclip(player.stolen_mule_weapon, player.stolen_mule_clip);
+            }
+        }
+    }
+}
+
+RandomizeGuns()
+// Thread for randomizing guns throught the round and giving them
+{
+    level endon ("end_of_round");
+
+    // Establish data
+    forbidden_weapons_array = array("staff_air_zm", "staff_fire_zm", "staff_lightning_zm", "staff_water_zm", "staff_revive_zm", "staff_air_upgraded_zm", "staff_fire_upgraded_zm", "staff_lightning_upgraded_zm", "staff_water_upgraded_zm", "staff_water_zm_cheap");
+    shit_weapon_array = array("c96_zm", "ballista_zm", "beretta93r_extclip_zm", "m14_zm", "870mcs_zm");
+    players = get_players();
+    weapons = getarraykeys(level.zombie_weapons);
+    max_key = level.zombie_weapons.size;
+    while (1)
+    {
+        // Iterate using while loop as nested fors ain't allowed
+        i = 0;
+        while (i <= (players.size - 1))
+        {
+            w = randomInt(max_key); // Radomize weapon key
+
+            // Compare against list of disalloed weapons
+            if (isinarray(forbidden_weapons_array, weapons[w]))
+            {
+                iPrintLn(weapons[w] + " is not allowed");
+                w = randomInt(max_key);
+                wait 0.05;
+                continue;
+            }
+
+            // Compare against having weapon (weapons with attachments get bypassed for now)
+            if (players[i] has_weapon_or_upgrade(weapons[w]))
+            {
+                iPrintLn("already have " + weapons[w]);
+                w = randomInt(max_key);
+                wait 0.05;
+                continue;
+            }
+
+            // Verify if incoming weapon is equipment
+            if (is_lethal_grenade(weapons[w]) || is_tactical_grenade(weapons[w]) || is_placeable_mine(weapons[w]) || is_melee_weapon(weapons[w]))
+            {
+                iPrintLn(weapons[w] + " is equipment");
+                w = randomInt(max_key);
+                wait 0.05;
+                continue;
+            }
+
+            // Failsafe if weapon key is too high
+            if (w > max_key)
+            {
+                iPrintLn("key " + w + " is too big");
+                w /= 2;
+                wait 0.05;
+                continue;
+            }
+
+            // Give chance of normal weapons become with attachments
+            if (randomInt(100) > 10)
+            {
+                if (weapons[w] == "ak74u_zm")
+                {
+                    weapon[w] = "ak74u_extclip_zm";
+                }
+                else if (weapons[w] == "beretta93r_zm")
+                {
+                    weapon[w] = "beretta93r_extclip_zm";
+                }
+                else if (weapons[w] == "mp40_zm")
+                {
+                    weapon[w] = "mp40_stalker_zm";
+                }
+            }
+            
+            weapon = weapons[w];    // Put weapon to the variable
+
+            // Define if weapon will be upgraded
+            lucky_roll = false;
+            if ((randomInt(100) > 20 && isinarray(shit_weapon_array, weapon)) || randomInt(100) > 66)
+            {
+                iPrintLn(weapon + " upgraded");
+                lucky_roll = true;
+                temp_wpn = weapons[w];
+                weapon = level.zombie_weapons[temp_wpn].upgrade_name;
+            }
+
+            // Take away previous weapon before giving new one
+            if (players[i].last_gungame_weapon != "none")
+            {
+                players[i] takeweapon(players[i].last_gungame_weapon);
+            }
+            iPrintLn("weapon: " + weapon);  // For debugging
+            
+            // Give upgraded weapon
+            if (lucky_roll)
+            {
+                players[i] giveweapon(weapon, 0, players[i] get_pack_a_punch_weapon_options(weapon));
+            }
+            // Give unupgraded weapon
+            else
+            {
+                players[i] weapon_give(weapon);
+            }
+            players[i] play_sound_on_ent("purchase");
+            players[i] givestartammo(weapon);
+	        players[i] switchtoweapon(weapon);
+            players[i].last_gungame_weapon = weapon;
+            flag_set("just_set_weapon");
+            // iPrintLn("has weapons after assigning: " + players[i] getweaponslistprimaries().size);
+
+            i++;
+            wait 0.05;
+        }
+        wait 3;
+        flag_clear("just_set_weapon");
+        wait 12;
+    }
+}
+
+WallbuysWatcher()
+// Watch for wallbuys, remove the gun and give points back
+{
+    level endon ("end_of_round");
+    while (1)
+    {
+        level waittill ("weapon_bought", player, gun);
+        return_points = get_weapon_cost(gun);
+        player add_to_player_score(return_points);
+        player takeweapon(gun);
+        wait 0.05;
+    }
+}
+
+NukeExtraWeapon()
+// Remove any extra weapons from player equipment (mainly piles)
+{
+    level endon ("end_of_round");
+    while (1)
+    {
+        foreach (player in level.players)
+        {
+            if (player.last_gungame_weapon == "none")
+            {
+                break;
+            }
+
+            gun_list = player getweaponslistprimaries();
+            gungame_gun = player.last_gungame_weapon;
+
+            if (gun_list.size > 1 && isdefined(gun_list[1]) && gun_list [1] != gungame_gun)
+            {
+                player takeweapon(gun_list[1]);
+            }
+
+            else if (gun_list [0] != gungame_gun)
+            {
+                player takeweapon(gun_list[0]);
+            }
+        }
+        wait 0.05;
+    }
+}
+
+// All 3 have to be emptied otherwise they somehow work lol
+player_too_many_weapons_monitor_takeaway_sequence_override()
+{
+}
+
+player_too_many_weapons_monitor_takeaway_simultaneous_override(primary_weapons_to_take)
+{
+}
+
+player_too_many_weapons_monitor_override()
+{
 }

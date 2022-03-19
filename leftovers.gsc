@@ -153,6 +153,31 @@ TranslateGeneratorNames(generator_id)
     }
 }
 
+WeaponSizeWatcher()
+{
+    while (1)
+    {
+        i = 0;
+        foreach (player in level.players)
+        {
+            if (player getweaponslistprimaries().size == 1)
+            {
+                i++;
+            }
+
+            if (i == level.players.size - 1)
+            {
+                flag_set("weapons_cleared");
+            }
+        }
+        if (flag("weapons_cleared"))
+        {
+            break;
+        }
+        wait 0.05;    
+    }
+}
+
 // ActorKilledTracked(einflictor, attacker, idamage, smeansofdeath, sweapon, vdir, shitloc, psoffsettime)
 // {
 //     if ( game["state"] == "postgame" )
