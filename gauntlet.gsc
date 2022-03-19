@@ -44,7 +44,7 @@ OnPlayerConnect()
 {
 	level waittill("connecting", player );	
 
-    level thread DevDebug("m14_upgraded_zm");        // For debugging
+    level thread DevDebug("raygun_mark2_upgraded_zm");   // For debugging
 	// player thread OnPlayerSpawned();
 
 	level waittill("initial_players_connected");
@@ -54,7 +54,7 @@ OnPlayerConnect()
 
     level thread EndGameWatcher();
     level thread TimerHud();
-    level thread BetaHud(4);
+    level thread BetaHud(5);
     level thread SetupPanzerRound(16);
     
     // For debugging
@@ -186,7 +186,7 @@ OnPlayerConnect()
         // Protect church
         else if (level.round_number == 20)
         {
-            level thread CheckForZone(20, "zone_village_2", 60);
+            level thread CheckForZone(20, array("zone_village_2"), 60);
         }
 
         // Have five perks at the end of the round
@@ -226,6 +226,12 @@ OnPlayerConnect()
             level thread CheckUsedWeapon(26);
             level thread WatchPlayerStat(26, "grenade_kills");
         }  
+
+        // Protect church
+        else if (level.round_number == 27)
+        {
+            level thread CompareKillsWithZones(27);
+        }
 
         level waittill("start_of_round"); // Careful not to add this inside normal fucntions
 
@@ -398,7 +404,7 @@ DevDebug(weapon)
 	self endon( "disconnect" );
 
     level.wait_for_round = true;
-    level.round_number = 26;
+    level.round_number = 27;
 
     level waittill ("start_of_round");
 
@@ -595,6 +601,10 @@ GauntletHud(challenge)
     else if (challenge == 26)
     {
         gauntlet_hud settext("Only kill with M14");
+    }
+    else if (challenge == 27)
+    {
+        gauntlet_hud settext("Only kill zombies indoors");
     }
 
     while (level.round_number == challenge)
@@ -1106,8 +1116,9 @@ EnvironmentKills()
         if (stat_difference != kill_difference)
         {
             // global_kills += kill_difference; // Maxis drone is crashing the game
-            // level notify ("env_kill");
+            level notify ("env_kill");
             flag_set("env_kill");
+            stat_difference = kill_difference;
         }
 
         old_global_kills = global_kills;
@@ -1469,6 +1480,8 @@ actor_killed_override( einflictor, attacker, idamage, smeansofdeath, sweapon, vd
 // Override used to pass weapon used to kill zombies to level variable alongside level notify
 {
     level.weapon_used = sweapon;
+    level.temp_attacker = attacker;
+    // iPrintLn(level.temp_attacker);
     level notify ("zombie_killed");
 
     if ( game["state"] == "postgame" )
@@ -1711,7 +1724,7 @@ SetDvarForRound(challenge, dvar, start_value, end_value)
     ConditionsMet(true);
 }
 
-CheckForZone(challenge, zone1, time, zone2, zone3, zone4, zone5, zone6, zone7, zone8)
+CheckForZone(challenge, zonearray, time)
 // dsc
 {
     level endon("end_game");
@@ -1723,35 +1736,6 @@ CheckForZone(challenge, zone1, time, zone2, zone3, zone4, zone5, zone6, zone7, z
     if (!isdefined(time))
     {
         time = 45;
-    }
-
-    if (!isdefined(zone2))
-    {
-        zone2 = "";
-    }
-    if (!isdefined(zone3))
-    {
-        zone3 = "";
-    }
-    if (!isdefined(zone4))
-    {
-        zone4 = "";
-    }
-    if (!isdefined(zone5))
-    {
-        zone5 = "";
-    }
-    if (!isdefined(zone6))
-    {
-        zone6 = "";
-    }
-    if (!isdefined(zone7))
-    {
-        zone7 = "";
-    }
-    if (!isdefined(zone8))
-    {
-        zone8 = "";
     }
 
     current_round = level.round_number;
@@ -1773,7 +1757,7 @@ CheckForZone(challenge, zone1, time, zone2, zone3, zone4, zone5, zone6, zone7, z
             right_zone = false;
             current_zone = player get_current_zone();
             // Count up players in the right zone
-            if (current_zone == zone1 || current_zone == zone2 || current_zone == zone3 || current_zone == zone4 || current_zone == zone5 || current_zone == zone6 || current_zone == zone7 || current_zone == zone8)
+            if (isinarray(zonearray, current_zone))
             {
                 right_zone = true;
                 in_zone++;
@@ -1825,7 +1809,7 @@ CheckForZone(challenge, zone1, time, zone2, zone3, zone4, zone5, zone6, zone7, z
         {
             current_zone = player get_current_zone();
             // Count up players in the right zone
-            if (current_zone == zone1 || current_zone == zone2 || current_zone == zone3 || current_zone == zone4 || current_zone == zone5 || current_zone == zone6 || current_zone == zone7 || current_zone == zone8)
+            if (isinarray(zonearray, current_zone))
             {
                 in_zone++;
             }  
@@ -2452,6 +2436,82 @@ FillStolenGuns()
             player.stolen_mule_ammo = weaponmaxammo(player.stolen_mule_weapon);
         }
     }
+}
+
+CompareKillsWithZones(challenge, allowed_zones)
+// Function takes the position of a player (or all players if it's environment kill) and compares it against a list of allowed zones
+{
+    level endon("end_game");
+    level endon("start_of_round"); 
+    self endon("disconnect");
+
+    self thread GauntletHud(challenge);
+    ConditionsInProgress(true);
+
+    if (!isdefined(allowed_zones))
+    {
+        // Air tunnel workbench is considered outside :(
+        allowed_zones = array("zone_start", "zone_start_a", "zone_start_b", "zone_fire_stairs", "zone_bunker_5a", "zone_bunker_5b", "zone_bunker_4c", "zone_nml_celllar", "zone_bolt_stairs", "zone_nml_19", "ug_bottom_zone", "zone_air_stairs", "zone_village_1", "zone_village_2", "zone_ice_stairs", "zone_chamber_0", "zone_chamber_1", "zone_chamber_2", "zone_chamber_3", "zone_chamber_4", "zone_chamber_5", "zone_chamber_6", "zone_chamber_7", "zone_chamber_8", "zone_robot_head");
+    }
+
+    players = level.players;
+    current_round = level.round_number;
+
+    self thread BreakLoopOnRoundEnd();
+    self thread EnvironmentKills();
+
+    while (current_round == level.round_number)
+    {
+        level waittill_any ("zombie_killed", "end_of_round", "env_kill");
+        if (isdefined(level.breakearly) && level.breakearly)
+        {
+            break;
+        }
+
+        i = 0;
+        foreach(player in level.players)
+        {
+            current_zone = player get_current_zone();
+            // Scan all players if it's env kill
+            if (flag("env_kill"))
+            {
+                if (!isinarray(allowed_zones, current_zone))
+                {
+                    level.forbidden_weapon_used = true;
+                }
+            }
+            // Pull id of player who kills
+            else if (player.name == level.temp_attacker)
+            {
+                matched_player = i;
+                break;
+            }
+            i++;
+        }
+
+        current_zone = players[matched_player] get_current_zone();
+        flag_clear("env_kill");
+
+        if (!flag("env_kill"))
+        {
+            // Compare the position of killer against allowed zones
+            if (!isinarray(allowed_zones, current_zone) && level.weapon_used != "none")
+            {
+                level.forbidden_weapon_used = true;
+            }
+        }
+        wait 0.05;
+    }
+    wait 0.1;
+    ConditionsMet(true);
+}
+
+BreakLoopOnRoundEnd()
+// Change level variable on round end
+{
+    level.breakearly = false;
+    level waittill ("end_of_round");
+    level.breakearly = true;
 }
 
 full_ammo_powerup_override(drop_item, player)
