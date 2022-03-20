@@ -48,7 +48,7 @@ OnPlayerConnect()
 
 	level waittill("initial_players_connected");
     level thread SetDvars();
-    // level thread DevDebug("raygun_mark2_upgraded_zm", 9);   // For debugging
+    level thread DevDebug("raygun_mark2_upgraded_zm", 7);   // For debugging
 
     flag_wait("initial_blackscreen_passed");
 
@@ -94,19 +94,19 @@ OnPlayerConnect()
         // Pull at least one weapon from the box
         else if (level.round_number == 5)
         {
-            level thread WatchPlayerStat(5, "grabbed_from_magicbox");
+            level thread WatchPlayerStat(5, "grabbed_from_magicbox", 0, 0, undefined, undefined, undefined);
         }
 
         // Dig 3 piles (1 for each on coop)
         else if (level.round_number == 6)
         {
-            level thread WatchPlayerStat(6, "tomb_dig");
+            level thread WatchPlayerStat(6, "tomb_dig", 2, 0, undefined, undefined, undefined);
         }
 
         // Knife kill 6 zombies (12 coop)
         else if (level.round_number == 7)
         {
-            level thread WatchPlayerStat(7, "melee_kills");
+            level thread WatchPlayerStat(7, "melee_kills", 0, 6, 0, 0, 6);
         }
 
         // Have one jug by the end of the round
@@ -119,7 +119,7 @@ OnPlayerConnect()
         else if (level.round_number == 9)
         {
             level thread CheckUsedWeapon(9);
-            level thread WatchPlayerStat(9, "grenade_kills");
+            level thread WatchPlayerStat(9, "grenade_kills", 0, 0, undefined, undefined, undefined);
         }   
 
         // Crouch only
@@ -167,7 +167,7 @@ OnPlayerConnect()
         // Dig 7 piles (2 for each on coop)
         else if (level.round_number == 17)
         {
-            level thread WatchPlayerStat(17, "tomb_dig");
+            level thread WatchPlayerStat(17, "tomb_dig", 6, 1, undefined, undefined, undefined);
         }
 
         // Timescale
@@ -180,7 +180,7 @@ OnPlayerConnect()
         else if (level.round_number == 19)
         {
             level thread CheckUsedWeapon(19);
-            level thread WatchPlayerStat(19, "grenade_kills");
+            level thread WatchPlayerStat(19, "grenade_kills", 0, 0, undefined, undefined, undefined);
         }   
 
         // Protect church
@@ -205,7 +205,7 @@ OnPlayerConnect()
         else if (level.round_number == 23)
         {
             level thread CheckUsedWeapon(23);
-            level thread WatchPlayerStat(23, "grenade_kills");
+            level thread WatchPlayerStat(23, "grenade_kills", 0, 0, undefined, undefined, undefined);
         }   
 
         // Take damage if not moving
@@ -290,6 +290,7 @@ SetDvars()
         level.players_stam = 0;
         level.players_cherry = 0;
         level.players_mulekick = 0;
+        level.allplayersup = false;
 
         level.player_too_many_weapons_monitor = 0;
 
@@ -855,7 +856,7 @@ GeneratorWatcher()
     }
 }
 
-WatchPlayerStat(challenge, stat_1)
+WatchPlayerStat(challenge, stat_1, multi_solo, multi_coop, stat_sum, sum_range_down, sum_range_up)
 // Function watches for a single provided stat (guns from box)
 {
     level endon("end_game");
@@ -863,23 +864,18 @@ WatchPlayerStat(challenge, stat_1)
 
     self thread GauntletHud(challenge);
     rnd = level.round_number;
+    beginning_stat_sum = 0;
 
-    // Grab stat on round start
-    beg_stat = 0;
-    beg_stat_array = array(0, 0, 0, 0, 0, 0, 0, 0);
-
-    // Load beginning stats into an array
-    i = 0;
+    // Grab stats to player variables on round start and sum stats
     foreach (player in level.players)
     {
-        beg_stat_array[i] += player.pers[stat_1];
-        i++;
+        player.temp_beginning_stat = player.pers[stat_1];
+        player.did_hit_box = 0;
+        beginning_stat_sum += player.temp_beginning_stat;
+        player iPrintLn("^1beginning stat: " + player.temp_beginning_stat); // debug
     }
 
     // Watch stats midround
-    rnd_stat = beg_stat;
-    rnd_stat_array = beg_stat_array;
-    did_hit_box = array(0, 0, 0, 0, 0, 0, 0, 0);
     proper_boxers = 0;
     piles_in_progress = false;
     temp_melees = 0;
@@ -888,124 +884,95 @@ WatchPlayerStat(challenge, stat_1)
         proper_boxers = 0;
         temp_melees = 0;
 
-        // Pull stat from each player into an array
+        // Pull stat from each player to player var during the round
+        foreach (player in level.players)
+        {
+            player.temp_current_stat = player.pers[stat_1];
+            // player iPrintLn("stat: " + player.temp_current_stat); // Debug
+        }
+
+        // Define if condition is met
         i = 0;
         foreach (player in level.players)
         {
-            rnd_stat_array[i] = player.pers[stat_1];
-            i++;
-        }
-        
-        // Define if condition is met
-        i = 0;
-        foreach (stat in rnd_stat_array)
-        {
-            if (challenge == 5 || challenge == 9 || challenge == 19 || challenge == 23)
-            {
-                // Change to 1 if stat is bigger
-                if (stat > beg_stat_array[i])
-                {
-                    did_hit_box[i] = 1;
-                }
-            }
-            else if (challenge == 6)
-            {
-                // Change to 1 if stat is bigger coop only
-                if (stat > beg_stat_array[i] && level.players.size > 1)
-                {
-                    did_hit_box[i] = 1;
-                }
-                // Change to 2 if stat is bigger for solo only
-                else if (stat > beg_stat_array[i] && level.players.size == 1)
-                {
-                    did_hit_box[i] = 2;
+            // Assign passed arguments to variables, important!
+            l_stat_sum = stat_sum;
+            l_sum_range_down = sum_range_down;
+            l_sum_range_up = sum_range_up;
 
-                    // Change to 1 if stat is bigger by 3 or more
-                    if (stat > beg_stat_array[i] + 2)
+            temp_stat = player.temp_current_stat;
+            beg_stat = player.temp_beginning_stat;
+            if (temp_stat > beg_stat)
+            {
+                // Sum the stats if need be
+                if (isdefined(l_stat_sum))
+                {
+                    l_stat_sum += temp_stat;
+                }
+                // Else analyze difference for each player separately
+                else
+                {
+                    // Don't switch the variable for no reason
+                    if (player.did_hit_box != 1)
                     {
-                        did_hit_box[i] = 1;
+                        player.did_hit_box = 2;
+                    }
+
+                    // If met requirements for solo
+                    if (temp_stat > (beg_stat + multi_solo) && level.players.size == 1)
+                    {
+                        player.did_hit_box = 1;
+                    }
+
+                    // If met requirements for coop
+                    else if (temp_stat > (beg_stat + multi_coop) && level.players.size > 1)
+                    {
+                        player.did_hit_box = 1;
                     }
                 }
             }
-            else if (challenge == 17)
-            {
-                if (stat > beg_stat_array[i])
-                {
-                    did_hit_box[i] = 2;
 
-                    // Change to 1 if stat is bigger by 7 or more for solo
-                    if ((stat > beg_stat_array[i] + 6) && level.players.size == 1)
-                    {
-                        did_hit_box[i] = 1;
-                    }
-                    // Change to 1 if stat is bigger by 2 or more for coop
-                    else if ((stat > beg_stat_array[i] + 1) && level.players.size > 1)
-                    {
-                        did_hit_box[i] = 1;
-                    }
+            // Handle summarized stats
+            if (isDefined(l_stat_sum) && l_stat_sum > 0)
+            {
+                // print("l_stat_sum: " + l_stat_sum);
+                // print("l_sum_range_up: " + l_sum_range_up);
+                // print("l_sum_range_down: " + l_sum_range_down);
+                // Add coop multiplication to upper range for coop
+                if (level.players.size > 1)
+                {
+                    l_sum_range_up += multi_coop;
+                }
+
+                // If requirements in progress
+                if (l_stat_sum > l_sum_range_down && l_stat_sum < l_sum_range_up)
+                {
+                    player.did_hit_box = 2;
+                }
+            
+                // If requirements met
+                else if (l_stat_sum >= l_sum_range_up)
+                {
+                    player.did_hit_box = 1;
                 }
             }
-            else if (challenge == 7 && level.players.size == 1)
-            {
-                // Change to 2 if stat is bigger
-                if (stat > beg_stat_array[i])
-                {
-                    did_hit_box[i] = 2;
 
-                    // Change to 1 is stat is bigger by 6 or more
-                    if (stat > beg_stat_array[i] + 5)
-                    {
-                        did_hit_box[i] = 1;
-                    }
-                }
-            }
-        }
-
-        if (challenge == 7 && level.players.size > 1)
-        {
-            // Sum melee kills from all players
-            i = 0;
-            foreach (stat in rnd_stat_array)
-            {
-                temp_melees += (stat - beg_stat_array[i]);
-                i++;
-            }
-
-            // Change state to 2 for all players if kills are between 1 and 12
-            if (temp_melees > 0 && temp_melees < 12)
-            {
-                i = 0;
-                foreach (player in level.players)
-                {
-                    did_hit_box[i] = 2;
-                }
-            }
-            // Change state to 1 for all players if kills are bigger or equal 12
-            else if (temp_melees >= 12)
-            {
-                i = 0;
-                foreach (player in level.players)
-                {
-                    did_hit_box[i] = 1;
-                }
-            }
-        }
-
-
-        // Count players who completed the challenge
-        foreach (fact in did_hit_box)
-        {
-            if (fact == 1)
+            // Count players who met requirements
+            if (player.did_hit_box == 1)
             {
                 proper_boxers++;
             }
-            else if (fact == 2)
+
+            // Notify that one of the players is in progress
+            else if (player.did_hit_box == 2 && !piles_in_progress)
             {
-                piles_in_progress = true; // Change to true if one or more players is in progress
+                piles_in_progress = true;
             }
         }
+ //////////////////////////////////////////////////////////////////       
 
-        // Determine state of the challenge
+        // print("proper_boxers: " + proper_boxers); // For debugging
+
         // Flow of the challenge 9 already defined in CheckUsedWeapon()
         if (challenge == 9 || challenge == 19 || challenge == 23 || challenge == 26)
         {
@@ -1015,6 +982,7 @@ WatchPlayerStat(challenge, stat_1)
             }
         }
         
+        // Define flow of meeting requirements
         else
         {
             if (proper_boxers == 0 && !piles_in_progress)
@@ -1141,34 +1109,72 @@ DisableMovement(challenge)
     ConditionsInProgress(true);
 
     self thread GauntletHud(challenge);
-    foreach (player in level.players)
-    {
-        if (challenge == 3)
-        {
-            player setmovespeedscale(0);
-            player allowjump(0);
-        }
-        else if (challenge == 10)
-        {
-            player allowstand(0);
-            player allowprone(0);
-            player allowsprint(0);
-        }
-        else if (challenge == 14)
-        {
-            player allowjump(0);
-        }
-    }
+    self thread WatchDownedPlayers();
 
-    level waittill ("end_of_round");
+    current_round = level.round_number;
+  
+    while (!level.allplayersup && (current_round == level.round_number))
+    {
+        foreach (player in level.players)
+        {
+            if (challenge == 3)
+            {
+                player setmovespeedscale(0);
+                player allowjump(0);
+            }
+            else if (challenge == 10)
+            {
+                player allowstand(0);
+                player allowprone(0);
+                player allowsprint(0);
+            }
+            else if (challenge == 14)
+            {
+                player allowjump(0);
+            }
+        }
+        wait 0.05;
+    }
+    
+    if (current_round == level.round_number)
+    {
+        level waittill ("end_of_round");
+    }
+    
     ConditionsMet(true);
     foreach (player in level.players)
     {
         player setmovespeedscale(1);
         player allowjump(1);
-        player allowstand(1);
-        player allowprone(1);
-        player allowsprint(1);
+        if (!player.is_last_stand)
+        {  
+            player allowstand(1);
+            player allowprone(1);
+            player allowsprint(1);
+        }
+    }
+}
+
+WatchDownedPlayers()
+{
+    level.allplayersup = false;
+    while (!level.allplayersup)
+    {
+        i = 1;
+        foreach (player in level.players)
+        {
+            if (!player.is_last_stand)
+            {
+                i++;
+            }
+        }
+
+        if (i == level.players.size)
+        {
+            level.allplayersup = true;
+        }
+        i = 1;
+        wait 0.05;
     }
 }
 
