@@ -178,6 +178,218 @@ WeaponSizeWatcher()
     }
 }
 
+WatchPlayerStat(challenge, stat_1)
+// Function watches for a single provided stat (guns from box)
+{
+    level endon("end_game");
+    level endon("start_of_round");
+
+    self thread GauntletHud(challenge);
+    rnd = level.round_number;
+
+    // Grab stat on round start
+    beg_stat = 0;
+    beg_stat_array = array(0, 0, 0, 0, 0, 0, 0, 0);
+
+    // Load beginning stats into an array
+    i = 0;
+    foreach (player in level.players)
+    {
+        beg_stat_array[i] += player.pers[stat_1];
+        i++;
+    }
+
+    print("beg_stat_array_0: " + beg_stat_array[0]);    // For debugging
+    print("beg_stat_array_1: " + beg_stat_array[1]);    // For debugging
+
+    // Watch stats midround
+    rnd_stat = beg_stat;
+    rnd_stat_array = array_copy(beg_stat_array);
+    did_hit_box = array(0, 0, 0, 0, 0, 0, 0, 0);
+    proper_boxers = 0;
+    piles_in_progress = false;
+    temp_melees = 0;
+    while (level.round_number == rnd)
+    {
+        proper_boxers = 0;
+        temp_melees = 0;
+
+        // Pull stat from each player into an array
+        i = 0;
+        foreach (player in level.players)
+        {
+            rnd_stat_array[i] = player.pers[stat_1];
+            i++;
+        }
+
+        print("rnd_stat_array_0: " + rnd_stat_array[0]);    // For debugging
+        print("rnd_stat_array_1: " + rnd_stat_array[1]);    // For debugging
+        
+        // Define if condition is met
+        i = 0;
+        foreach (stat in rnd_stat_array)
+        {
+            if (challenge == 5 || challenge == 9 || challenge == 19 || challenge == 23)
+            {
+                // Change to 1 if stat is bigger
+                if (stat > beg_stat_array[i])
+                {
+                    did_hit_box[i] = 1;
+                }
+            }
+            else if (challenge == 6)
+            {
+                // Change to 1 if stat is bigger coop only
+                if (stat > beg_stat_array[i] && level.players.size > 1)
+                {
+                    did_hit_box[i] = 1;
+                }
+                // Change to 2 if stat is bigger for solo only
+                else if (stat > beg_stat_array[i] && level.players.size == 1)
+                {
+                    did_hit_box[i] = 2;
+
+                    // Change to 1 if stat is bigger by 3 or more
+                    if (stat > beg_stat_array[i] + 2)
+                    {
+                        did_hit_box[i] = 1;
+                    }
+                }
+            }
+            else if (challenge == 17)
+            {
+                if (stat > beg_stat_array[i])
+                {
+                    did_hit_box[i] = 2;
+
+                    // Change to 1 if stat is bigger by 7 or more for solo
+                    if ((stat > beg_stat_array[i] + 6) && level.players.size == 1)
+                    {
+                        did_hit_box[i] = 1;
+                    }
+                    // Change to 1 if stat is bigger by 2 or more for coop
+                    else if ((stat > beg_stat_array[i] + 1) && level.players.size > 1)
+                    {
+                        did_hit_box[i] = 1;
+                    }
+                }
+            }
+            else if (challenge == 7 && level.players.size == 1)
+            {
+                // Change to 2 if stat is bigger
+                if (stat > beg_stat_array[i])
+                {
+                    did_hit_box[i] = 2;
+
+                    // Change to 1 is stat is bigger by 6 or more
+                    if (stat > beg_stat_array[i] + 5)
+                    {
+                        did_hit_box[i] = 1;
+                    }
+                }
+            }
+        }
+
+        if (challenge == 7 && level.players.size > 1)
+        {
+            // Sum melee kills from all players
+            i = 0;
+            foreach (stat in rnd_stat_array)
+            {
+                temp_melees += (stat - beg_stat_array[i]);
+                i++;
+            }
+
+            // Change state to 2 for all players if kills are between 1 and 12
+            if (temp_melees > 0 && temp_melees < 12)
+            {
+                i = 0;
+                foreach (player in level.players)
+                {
+                    did_hit_box[i] = 2;
+                }
+            }
+            // Change state to 1 for all players if kills are bigger or equal 12
+            else if (temp_melees >= 12)
+            {
+                i = 0;
+                foreach (player in level.players)
+                {
+                    did_hit_box[i] = 1;
+                }
+            }
+        }
+
+
+        // Count players who completed the challenge
+        foreach (fact in did_hit_box)
+        {
+            if (fact == 1)
+            {
+                proper_boxers++;
+            }
+            else if (fact == 2)
+            {
+                piles_in_progress = true; // Change to true if one or more players is in progress
+            }
+        }
+        iPrintLn("proper_boxers: " + proper_boxers);
+        // Determine state of the challenge
+        // Flow of the challenge 9 already defined in CheckUsedWeapon()
+        if (challenge == 9 || challenge == 19 || challenge == 23 || challenge == 26)
+        {
+            if (proper_boxers > 0)
+            {
+                level.forbidden_weapon_used = true;
+            }
+        }
+        
+        else
+        {
+            if (proper_boxers == 0 && !piles_in_progress)
+            {
+                ConditionsMet(false);
+                ConditionsInProgress(false);            
+            }
+            else if (proper_boxers == level.players.size)
+            {
+                ConditionsMet(true);
+            }
+            else
+            {
+                ConditionsInProgress(true); 
+            }
+        }
+
+        wait 0.05;
+    }
+}
+
+DebugHud(debug)
+// Hud for printing variables in debugging
+{
+    if (debug)
+    {
+        debug_hud = newHudElem();
+        debug_hud.alignx = "center";
+        debug_hud.aligny = "top";
+        debug_hud.horzalign = "user_center";
+        debug_hud.vertalign = "user_top";
+        debug_hud.x = 0;
+        debug_hud.y = 20;
+        debug_hud.fontscale = 1.4;
+        debug_hud.alpha = 1;
+        debug_hud.hidewheninmenu = 1;
+        debug_hud.color = (1, 1, 1);
+        while (1)
+        {
+            debug_hud settext("1st: " + level.debug_1 + " / 2nd " + level.debug_2);
+            wait 0.05;
+        }
+        
+    }
+}
+
 // All 3 have to be emptied otherwise they somehow work lol
 // player_too_many_weapons_monitor_takeaway_sequence_override()
 // {

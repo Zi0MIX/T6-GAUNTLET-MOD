@@ -48,18 +48,17 @@ OnPlayerConnect()
 
 	level waittill("initial_players_connected");
     level thread SetDvars();
-    level thread DevDebug("raygun_mark2_upgraded_zm", 7);   // For debugging
+    // level thread DevDebug("raygun_mark2_upgraded_zm", 28);   // For debugging
 
     flag_wait("initial_blackscreen_passed");
 
     level thread EndGameWatcher();
     level thread TimerHud();
-    level thread BetaHud(5);
+    level thread BetaHud(6);
     level thread SetupPanzerRound(16);
     
     // For debugging
-    // level thread DebugHud(true);
-    if (level.wait_for_round)
+    if (isdefined(level.wait_for_round))
     {
         iPrintLn("Waiting");
         level waittill ("start_of_round");
@@ -233,6 +232,12 @@ OnPlayerConnect()
             level thread CompareKillsWithZones(27);
         }
 
+        // Only kill with mp40
+        else if (level.round_number == 28)
+        {
+            level thread WatchPlayerStat(28, "drops", 0, 0, undefined, undefined, undefined);
+        }   
+
         level waittill("start_of_round"); // Careful not to add this inside normal fucntions
 
         wait 0.05;
@@ -352,7 +357,7 @@ EndGameWatcher()
         else if (level.round_number >= 28) // For beta only
         {
             wait 5;
-            EndGame("you win kappa");
+            EndGame("you win beta kappa");
         }
         
 
@@ -611,6 +616,10 @@ GauntletHud(challenge)
     {
         gauntlet_hud settext("Only kill zombies while indoors");
     }
+    else if (challenge == 28)
+    {
+        gauntlet_hud settext("Don't pick up any drops");
+    }
 
     while (level.round_number == challenge)
     {
@@ -679,31 +688,6 @@ BetaHud(beta_version)
     beta_hud.hidewheninmenu = 1;
     beta_hud.color = (0, 0.4, 0.8);
     beta_hud settext("Beta V" + beta_version);
-}
-
-DebugHud(debug)
-// Hud for printing variables in debugging
-{
-    if (debug)
-    {
-        debug_hud = newHudElem();
-        debug_hud.alignx = "center";
-        debug_hud.aligny = "top";
-        debug_hud.horzalign = "user_center";
-        debug_hud.vertalign = "user_top";
-        debug_hud.x = 0;
-        debug_hud.y = 20;
-        debug_hud.fontscale = 1.4;
-        debug_hud.alpha = 1;
-        debug_hud.hidewheninmenu = 1;
-        debug_hud.color = (1, 1, 1);
-        while (1)
-        {
-            debug_hud settext("1st: " + level.debug_1 + " / 2nd " + level.debug_2);
-            wait 0.05;
-        }
-        
-    }
 }
 
 CheckForGenerator(challenge, gen_id, rnd_override)
@@ -872,7 +856,7 @@ WatchPlayerStat(challenge, stat_1, multi_solo, multi_coop, stat_sum, sum_range_d
         player.temp_beginning_stat = player.pers[stat_1];
         player.did_hit_box = 0;
         beginning_stat_sum += player.temp_beginning_stat;
-        player iPrintLn("^1beginning stat: " + player.temp_beginning_stat); // debug
+        // player iPrintLn("^1beginning stat: " + player.temp_beginning_stat); // debug
     }
 
     // Watch stats midround
@@ -974,11 +958,16 @@ WatchPlayerStat(challenge, stat_1, multi_solo, multi_coop, stat_sum, sum_range_d
         // print("proper_boxers: " + proper_boxers); // For debugging
 
         // Flow of the challenge 9 already defined in CheckUsedWeapon()
-        if (challenge == 9 || challenge == 19 || challenge == 23 || challenge == 26)
+        if (challenge == 9 || challenge == 19 || challenge == 23 || challenge == 26 || challenge == 28)
         {
             if (proper_boxers > 0)
             {
                 level.forbidden_weapon_used = true;
+            }
+
+            else if (proper_boxers == 0 && challenge == 28)
+            {
+                ConditionsInProgress(true); 
             }
         }
         
@@ -1001,6 +990,11 @@ WatchPlayerStat(challenge, stat_1, multi_solo, multi_coop, stat_sum, sum_range_d
         }
 
         wait 0.05;
+    }
+    wait 0.1;
+    if (challenge == 28)
+    {
+        ConditionsMet(true);
     }
 }
 
