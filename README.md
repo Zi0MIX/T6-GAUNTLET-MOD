@@ -29,11 +29,13 @@ Patch that emulates gauntlet gamemode from BO4 on BO2 Origins
 25. Survive with randomized loadout.
 26. Only kill with m14.
 27. Only kill zombies indoors.
-28. don't get any drops
+28. Don't pick up any drops.
 29. only kill zombies in mud
 30. 
 
-# Notes
-- Shield excluded from melee only, as it allows for staff abuse
-- Drone crashes the game on round 2?
-- Workbench in air tunnel is considered outside :(
+# Known issues
+- Drone crashing the game (most consistently on max drop)
+- Drone is an env kill while being registered by weapon function
+- Killing off zombies from last horde by the game if player runs too far off is an env kill
+- Workbench in air tunnel is "outside"
+- Rare occurance of CI error on coop if players down in certain situations
