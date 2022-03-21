@@ -45,11 +45,11 @@ OnPlayerConnect()
 {
 	level waittill("connecting", player );	
     
-	// player thread OnPlayerSpawned();
+	player thread OnPlayerSpawned();
 
 	level waittill("initial_players_connected");
     level thread SetDvars();
-    // level thread DevDebug("raygun_mark2_upgraded_zm", 8);   // For debugging
+    level thread DevDebug("raygun_mark2_upgraded_zm");   // For debugging
 
     flag_wait("initial_blackscreen_passed");
 
@@ -57,7 +57,7 @@ OnPlayerConnect()
     level thread TimerHud();
     level thread ZombieCounterHud();
     level thread BetaHud(7);
-    level thread SetupPanzerRound(16);
+    level thread SetupPanzerRound(16);  // To remake/removal?
     
     // For debugging
     if (isdefined(level.wait_for_round))
@@ -413,7 +413,11 @@ DevDebug(weapon, round)
 
     level.wait_for_round = true;
     level.debug_weapons = true;     // debug CheckUsedWeapon()
-    level.round_number = round;
+
+    if (isdefined(round))
+    {
+        level.round_number = round;
+    }
 
     level waittill ("start_of_round");
 
@@ -1224,7 +1228,7 @@ WatchPerks(challenge, number_of_perks)
     {
         ConditionsMet(true);
     }
-    else if (challenge == 8 && level.players_jug >= number_of_perks)
+    else if (challenge == 8 && level.players_jug >= level.players.size)
     {
         ConditionsMet(true);
     }
@@ -1456,7 +1460,7 @@ WatchPerkMidRound(perk)
 }
 
 CheckUsedWeapon(challenge)
-// Function verifies if kills are only done with specified weapon(s) (doesn't work for greandes!!!!!!)
+// Function verifies if kills are only done with specified weapon(s)
 {
     level endon("end_game");
     level endon("start_of_round");
@@ -1480,8 +1484,6 @@ CheckUsedWeapon(challenge)
     {
         level waittill_any ("zombie_killed", "end_of_round");
 
-        // iPrintLn(level.killer_class);         // For debugging
-        // iPrintLn(level.weapon_used);         // For debugging
         proper_gun_used = false;
         
         killed_lethals = false;         // Nades, semtex, clays, monkeys, beacons
@@ -1574,12 +1576,13 @@ CheckUsedWeapon(challenge)
                 allowed_weapons = array_copy(m14_array);
             }
 
-            // Define if proper gun was used (add ifs for different args here)
-            if (!killed_lethals && !killed_drone && !killed_stick && !killed_shield && !killed_melee && isinarray(allowed_weapons, level.weapon_used))
+            // Define if proper gun was used
+            if (isinarray(allowed_weapons, level.weapon_used))
             {
                 proper_gun_used = true;
             }
-            else if (!killed_lethals && !killed_drone && !killed_melee && !killed_robots && !killed_tank && !killed_worldspawn && killed_instakill)
+            // Watch for instakill
+            else if (!killed_lethals && !killed_robots && !killed_tank && !killed_drone && !killed_stick && !killed_shield && killed_melee && killed_insta)
             {
                 pass_insta = true;
                 foreach (player in level.players)
@@ -1603,6 +1606,16 @@ CheckUsedWeapon(challenge)
                 {
                     proper_gun_used = true;
                 }
+            }
+            // Watch for env kills
+            else if (killed_robots || killed_tank)
+            {
+                proper_gun_used = true;
+            }
+            // Watch for despawns
+            else if (killed_worldspawn && !killed_insta)
+            {
+                proper_gun_used = true;
             }
         }
 
@@ -1673,7 +1686,7 @@ CheckUsedWeapon(challenge)
         }
 
         // END GAME IF CONDITION NOT MET
-        if (!proper_gun_used)
+        if (!proper_gun_used && current_round == level.round_number)
         {
             level.forbidden_weapon_used = true;
         }

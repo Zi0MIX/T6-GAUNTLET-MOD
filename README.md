@@ -24,18 +24,24 @@ Patch that emulates gauntlet gamemode from BO4 on BO2 Origins
 20. Protect church.
 21. Own five perks at the end of the round.
 22. All perks are offline.
-23. Only kill with unpacked STG44.
+23. [Only kill with unpacked STG44.]
 24. Move of get hurt.
 25. Survive with randomized loadout.
-26. Only kill with m14.
+26. [Only kill with m14.]
 27. Only kill zombies indoors.
 28. Don't pick up any drops.
-29. only kill zombies in mud
-30. 
+29. [only kill zombies in mud]
+30. []
 
 # Known issues
-- Drone crashing the game (most consistently on max drop)
-- Drone is an env kill while being registered by weapon function
-- Killing off zombies from last horde by the game if player runs too far off is an env kill
+- Drone & downs crashing the game on max ammo drop
 - Workbench in air tunnel is "outside"
-- Rare occurance of CI error on coop if players down in certain situations
+
+# Threads verified (crashing error)
+- TimerHud()
+- ZombieCounterHud()
+- BetaHud()
+- SetupPanzerRound()
+- EndGameWatcher()
+- SetDvars()
+- DevDebug()
