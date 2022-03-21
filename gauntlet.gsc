@@ -49,7 +49,7 @@ OnPlayerConnect()
 
 	level waittill("initial_players_connected");
     level thread SetDvars();
-    level thread DevDebug("raygun_mark2_upgraded_zm");   // For debugging
+    level thread DevDebug("raygun_mark2_upgraded_zm", 8);   // For debugging
 
     flag_wait("initial_blackscreen_passed");
 
@@ -273,14 +273,9 @@ SetDvars()
 
     while (1)
     {
-        level.conditions_met = false;
+        level.conditions_met = true;
         level.conditions_in_progress = false;
         level.forbidden_weapon_used = false;
-        level.murderweapontype = undefined;  
-        level.murderweapon = undefined;  
-        level.zombie_killed = 0;
-        level.gauntlet_kills = 0;
-        level.env_kills = 0;
         level.active_gen_1 = false;
         level.active_gen_2 = false;
         level.active_gen_3 = false;
@@ -459,7 +454,7 @@ TimerHud()
 	timer_hud.horzalign = "user_left";			
 	timer_hud.vertalign = "user_top";
 	timer_hud.x = 7; 							
-	timer_hud.y = 2;							
+	timer_hud.y = 50;							
 	timer_hud.fontscale = 1.4;
 	timer_hud.alpha = 1;
 	timer_hud.color = ( 1, 1, 1 );
@@ -480,7 +475,7 @@ ZombieCounterHud()
 	counter_hud.horzalign = "user_left";			
 	counter_hud.vertalign = "user_top";
 	counter_hud.x = 7; 							
-	counter_hud.y = 22;							
+	counter_hud.y = 70;							
 	counter_hud.fontscale = 1.4;
 	counter_hud.alpha = 1;
 	counter_hud.color = ( 1, 1, 1 );
@@ -506,7 +501,7 @@ GauntletHud(challenge)
     }
     gauntlet_hud = newHudElem();
     gauntlet_hud.alignx = "right";
-    gauntlet_hud.aligny = "center";
+    gauntlet_hud.aligny = "middle";
     gauntlet_hud.horzalign = "user_right";
     gauntlet_hud.vertalign = "user_center";
     gauntlet_hud.x -= 3;
@@ -706,7 +701,7 @@ BetaHud(beta_version)
         beta_version = 0;
     }
     beta_hud = newHudElem();
-    beta_hud.alignx = "center";
+    beta_hud.alignx = "middle";
     beta_hud.aligny = "top";
     beta_hud.horzalign = "user_center";
     beta_hud.vertalign = "user_top";
@@ -1173,7 +1168,7 @@ DisableMovement(challenge)
     {
         player setmovespeedscale(1);
         player allowjump(1);
-        if (!player.is_last_stand)
+        if (!player player_is_in_laststand())
         {  
             player allowstand(1);
             player allowprone(1);
@@ -1190,7 +1185,7 @@ WatchDownedPlayers()
         i = 1;
         foreach (player in level.players)
         {
-            if (!player.is_last_stand)
+            if (!player player_is_in_laststand())
             {
                 i++;
             }
@@ -1213,6 +1208,11 @@ WatchPerks(challenge, number_of_perks)
 
     level.proper_players = 0;
     self thread GauntletHud(challenge);
+    if (!isdefined(number_of_perks))
+    {
+        number_of_perks = 1;
+    }
+    
     if (challenge == 8)
     {
         self thread EachPerkWatcher();
@@ -1316,7 +1316,7 @@ EachPerkWatcher()
         hasmule = 0;
         foreach (player in level.players)
         {
-            if (!player.is_last_stand)
+            if (!player player_is_in_laststand())
             {
                 if (player hasperk( "specialty_armorvest"))
                 {
@@ -2393,12 +2393,12 @@ SprintWatcher(challenge)
             }
 
             // Do damage if players don't move, kill if they don't move for too long
-            if (player.isnt_moving > 20 && !player.is_last_stand)
+            if (player.isnt_moving > 20 && !player player_is_in_laststand())
             {
                 player dodamage(player.maxhealth, player.origin);
                 player.isnt_moving = 0;
             }
-            else if (player.isnt_moving > 4 && !player.is_last_stand)
+            else if (player.isnt_moving > 4 && !player player_is_in_laststand())
             {
                 player iPrintLn("^1Move!!!");
                 player dodamage(player.maxhealth / 25, player.origin);
@@ -2817,38 +2817,26 @@ full_ammo_powerup_override(drop_item, player)
 
     for ( i = 0; i < players.size; i++ )
     {
-        if ( players[i] maps\mp\zombies\_zm_laststand::player_is_in_laststand() )
+        if ( !players[i] player_is_in_laststand() )
         {
-            continue;
-        }
+            primary_weapons = players[i] getweaponslist( 1 );
+            players[i] notify( "zmb_max_ammo" );
+            players[i] notify( "zmb_lost_knife" );
+            players[i] notify( "zmb_disable_claymore_prompt" );
+            players[i] notify( "zmb_disable_spikemore_prompt" );
 
-        primary_weapons = players[i] getweaponslist( 1 );
-        players[i] notify( "zmb_max_ammo" );
-        players[i] notify( "zmb_lost_knife" );
-        players[i] notify( "zmb_disable_claymore_prompt" );
-        players[i] notify( "zmb_disable_spikemore_prompt" );
-
-        for ( x = 0; x < primary_weapons.size; x++ )
-        {
-            pulled_weapon = primary_weapons[x];
-            if ( level.headshots_only && is_lethal_grenade( pulled_weapon ) )
+            for ( x = 0; x < primary_weapons.size; x++ )
             {
-                continue;
-            }
+                pulled_weapon = primary_weapons[x];
 
-            if ( isdefined( level.zombie_include_equipment ) && isdefined( level.zombie_include_equipment[pulled_weapon] ) )
-            {
-                continue;
-            }
-
-            if ( isdefined( level.zombie_weapons_no_max_ammo ) && isdefined( level.zombie_weapons_no_max_ammo[pulled_weapon] ) )
-            {
-                continue;
-            }
-
-            if ( players[i] hasweapon( pulled_weapon ) )
-            {
-                players[i] givemaxammo( pulled_weapon );
+                // Reversed if statement to avoid continues
+                if ( (!level.headshots_only && !is_lethal_grenade( pulled_weapon )) || ( !isdefined( level.zombie_include_equipment ) && !isdefined( level.zombie_include_equipment[pulled_weapon] )) || ( !isdefined( level.zombie_weapons_no_max_ammo ) && !isdefined( level.zombie_weapons_no_max_ammo[pulled_weapon] )) )
+                {
+                    if ( players[i] hasweapon( pulled_weapon ) )
+                    {
+                        players[i] givemaxammo( pulled_weapon );
+                    }
+                }
             }
         }
     }
