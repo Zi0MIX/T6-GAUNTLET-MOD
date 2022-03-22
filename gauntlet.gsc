@@ -49,7 +49,7 @@ OnPlayerConnect()
 
 	level waittill("initial_players_connected");
     level thread SetDvars();
-    level thread DevDebug("raygun_mark2_upgraded_zm", 8);   // For debugging
+    level thread DevDebug("raygun_mark2_upgraded_zm", 13);   // For debugging
 
     flag_wait("initial_blackscreen_passed");
 
@@ -137,7 +137,7 @@ OnPlayerConnect()
         // Have at least one upgraded staff at the end of the round
         else if (level.round_number == 12)
         {
-            level thread WatchUpgradedStaffs(12, 1);
+            // level thread WatchUpgradedStaffs(12, 1);
         }
 
         // Survive a round with super-sprinters
@@ -273,7 +273,7 @@ SetDvars()
 
     while (1)
     {
-        level.conditions_met = true;
+        level.conditions_met = false;
         level.conditions_in_progress = false;
         level.forbidden_weapon_used = false;
         level.active_gen_1 = false;
@@ -1894,7 +1894,7 @@ WatchUpgradedStaffs(challenge, number_of_staffs)
     }
 }
 
-ZombieSuperSprint(challenge)
+ZombieSuperSprint(challenge, amount_of_supersprinters)
 // Function sets most of the zombies in the round as super-sprinters
 {
     level endon("end_game");
@@ -1902,31 +1902,99 @@ ZombieSuperSprint(challenge)
 
     self thread GauntletHud(challenge);
 
+    if (!isdefined(amount_of_supersprinters))
+    {
+        amount_of_supersprinters = 20;
+    }
+
     current_round = level.round_number;
     ConditionsInProgress(true);
+
+    super_sprinters = 0;
+    sprinters = 0;
+    force_runners = 0;
+    dv = 0;                 // Only for dev prints
     while (current_round == level.round_number)
     {
-        i = 0;
+        super_sprinters = 0;
+        sprinters = 0;
+
+        // Count super sprinters on the map
         foreach (zombie in get_round_enemy_array())
         {
-            if (zombie.is_super_sprinter)
+            if (isdefined(zombie.is_super_sprinter))
             {
-                i++;
-            }
-
-            if (isdefined(zombie.has_legs) && zombie.has_legs && isDefined(zombie.completed_emerging_into_playable_area) && zombie.completed_emerging_into_playable_area && !isdefined(zombie.is_super_sprinter))
-            {
-                if (i > 19 || randomint(100) > 95)
+                if (zombie.is_super_sprinter)
                 {
-                    zombie.is_super_sprinter = false;
+                    super_sprinters++;
                 }
                 else
                 {
-                    zombie set_zombie_run_cycle("super_sprint");
+                    sprinters++;
+                }
+                
+            }
+        }
+        
+        foreach (zombie in get_round_enemy_array())
+        {
+            // Slow super sprinters down if there is too many
+            if ((force_runners > 0) && isdefined(zombie.has_legs) && zombie.has_legs && isDefined(zombie.completed_emerging_into_playable_area) && zombie.completed_emerging_into_playable_area)
+            {
+                if (isdefined(level.debug_weapons) && level.debug_weapons)
+                {
+                    iPrintLn("slowing down a zombie");
+                }
+                
+                if (isdefined(zombie.is_super_sprinter) && zombie.is_super_sprinter)
+                {
+                    super_sprinters--;
+                }
+                zombie.is_super_sprinter = false;
+                zombie set_zombie_run_cycle("run");
+                force_runners--;
+            }
+
+            // Handle new zombies
+            if (isdefined(zombie.has_legs) && zombie.has_legs && isDefined(zombie.completed_emerging_into_playable_area) && zombie.completed_emerging_into_playable_area && !isdefined(zombie.is_super_sprinter))
+            {
+                if (super_sprinters >= amount_of_supersprinters || randomint(100) > 95)
+                {
+                    zombie.is_super_sprinter = false;
+                    sprinters++;
+                    zombie set_zombie_run_cycle("run");
+                }
+                else
+                {
                     zombie.is_super_sprinter = true;
+                    super_sprinters++;
+                    zombie set_zombie_run_cycle("super_sprint");
                 }
             }
         }
+        // Queue zombies to slow down
+        if (super_sprinters > amount_of_supersprinters)
+        {
+            force_runners = super_sprinters - amount_of_supersprinters;
+            if (force_runners < 0)
+            {
+                force_runners = 0;
+            }
+        }
+
+        // Dev prints
+        if (isdefined(level.debug_weapons) && level.debug_weapons)
+        {
+            dv++;
+            if (dv >= 60)
+            {
+                iPrintLn("super_sprinters: " + super_sprinters);
+                iPrintLn("sprinters: " + sprinters);
+                iPrintLn("force_runners: " + force_runners);
+                dv = 0;
+            }
+        }
+  
         wait 0.05;
     }
     wait 0.1;
