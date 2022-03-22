@@ -38,7 +38,13 @@ init()
     flag_init("out_of_zone");
     flag_init("just_set_weapon");
     flag_init("weapons_cleared");
-    flag_init("drop_gone");
+    flag_init("nuke_taken");
+    flag_init("insta_taken");
+    flag_init("max_taken");
+    flag_init("double_taken");
+    flag_init("blood_taken");
+    flag_init("sale_taken");
+    flag_init("points_taken");
 }
 
 OnPlayerConnect()
@@ -49,7 +55,7 @@ OnPlayerConnect()
 
 	level waittill("initial_players_connected");
     level thread SetDvars();
-    level thread DevDebug("raygun_mark2_upgraded_zm");   // For debugging
+    level thread DevDebug();   // For debugging
 
     flag_wait("initial_blackscreen_passed");
 
@@ -58,6 +64,7 @@ OnPlayerConnect()
     level thread ZombieCounterHud();
     level thread BetaHud(7);
     level thread SetupPanzerRound(16);  // To remake/removal?
+    level thread DropWatcher();
     
     // For debugging
     if (isdefined(level.wait_for_round))
@@ -77,7 +84,7 @@ OnPlayerConnect()
         // Only kill with melee (except for shield)
         else if (level.round_number == 2)
         {
-            level thread CheckUsedWeapon(2, true);
+            level thread CheckUsedWeapon(2);
         }
 
         // Stay still
@@ -137,7 +144,7 @@ OnPlayerConnect()
         // Have at least one upgraded staff at the end of the round
         else if (level.round_number == 12)
         {
-            // level thread WatchUpgradedStaffs(12, 1);
+            level thread WatchUpgradedStaffs(12, 1);
         }
 
         // Survive a round with super-sprinters
@@ -296,6 +303,13 @@ SetDvars()
         level.player_too_many_weapons_monitor = 0;
 
         flag_clear("env_kill");
+        flag_clear("nuke_taken");
+        flag_clear("insta_taken");
+        flag_clear("max_taken");
+        flag_clear("double_taken");
+        flag_clear("blood_taken");
+        flag_clear("sale_taken");
+        flag_clear("points_taken");
 
         level waittill("end_of_round");
         wait 3; // Must be higher than 1 ::EndGameWatcher
@@ -864,7 +878,7 @@ GeneratorWatcher()
     }
 }
 
-WatchPlayerStat(challenge, stat_1, multi_solo, multi_coop, stat_sum, sum_range_down, sum_range_up, use_forbidden_weapons)
+WatchPlayerStat(challenge, stat_1, multi_solo, multi_coop, stat_sum, sum_range_down, sum_range_up)
 // Function watches for a single provided stat (guns from box)
 {
     level endon("end_game");
@@ -873,11 +887,6 @@ WatchPlayerStat(challenge, stat_1, multi_solo, multi_coop, stat_sum, sum_range_d
     self thread GauntletHud(challenge);
     rnd = level.round_number;
     beginning_stat_sum = 0;
-
-    if (!isdefined(use_forbidden_weapons))
-    {
-        use_forbidden_weapons = false;
-    }
 
     // Grab stats to player variables on round start and sum stats
     foreach (player in level.players)
@@ -983,43 +992,20 @@ WatchPlayerStat(challenge, stat_1, multi_solo, multi_coop, stat_sum, sum_range_d
             }
         }
 
-        // print("proper_boxers: " + proper_boxers); // For debugging
-
-        // Flow of the challenge 9 already defined in CheckUsedWeapon()
-        if (use_forbidden_weapons)
-        {
-            if (proper_boxers > 0)
-            {
-                if (isdefined(level.debug_weapons) && level.debug_weapons)
-                {
-                    iPrintLn("Kill: Nuke");
-                }
-                level.forbidden_weapon_used = true;
-            }
-
-            else if (proper_boxers == 0 && challenge == 28)
-            {
-                ConditionsInProgress(true); 
-            }
-        }
-        
         // Define flow of meeting requirements
+        if (proper_boxers == 0 && !piles_in_progress)
+        {
+            ConditionsMet(false);
+            ConditionsInProgress(false);            
+        }
+        else if (proper_boxers == level.players.size)
+        {
+            ConditionsMet(true);
+        }
         else
         {
-            if (proper_boxers == 0 && !piles_in_progress)
-            {
-                ConditionsMet(false);
-                ConditionsInProgress(false);            
+            ConditionsInProgress(true); 
             }
-            else if (proper_boxers == level.players.size)
-            {
-                ConditionsMet(true);
-            }
-            else
-            {
-                ConditionsInProgress(true); 
-            }
-        }
 
         wait 0.05;
     }
@@ -1028,58 +1014,6 @@ WatchPlayerStat(challenge, stat_1, multi_solo, multi_coop, stat_sum, sum_range_d
     {
         ConditionsMet(true);
     }
-}
-
-WatchPlayerStats(challenge, stat_1, stat_2)
-// Function turns on boolean in case of zombies being shot, trapped or tanked
-{
-    level endon("end_game");
-    level endon("start_of_round");
-
-    self thread GauntletHud(challenge);
-    self thread EnvironmentKills();
-    if (challenge == 2)
-    {
-        ConditionsInProgress(true);
-    }
-    rnd = level.round_number;
-
-    // Grab stats on round start
-    beg_stat1 = 0;
-    beg_stat2 = 0;
-    foreach (player in level.players)
-    {
-        beg_stat1 += player.pers[stat_1];
-        beg_stat2 += player.pers[stat_2];
-    }
-
-    beg_difference = (beg_stat1 - beg_stat2);
-
-    // Watch stats midround
-    rnd_stat1 = beg_stat1;
-    rnd_stat2 = beg_stat2;
-    while (level.round_number == rnd)
-    {
-        rnd_stat1 = 0;
-        rnd_stat2 = 0;
-        foreach (player in level.players)
-        {
-            rnd_stat1 += player.pers[stat_1];
-            rnd_stat2 += player.pers[stat_2];
-        }
-
-        get_difference = (rnd_stat1 - rnd_stat2);
-        // print(get_difference + " / " + beg_difference);
-
-        if (get_difference != beg_difference || flag("env_kill"))
-        {
-            level.forbidden_weapon_used = true;
-        }
-        
-        wait 0.05;
-    }
-    wait 0.1;
-    ConditionsMet(true);
 }
 
 EnvironmentKills()
@@ -1464,17 +1398,13 @@ WatchPerkMidRound(perk)
     }
 }
 
-CheckUsedWeapon(challenge, watch_nukes)
+CheckUsedWeapon(challenge)
 // Function verifies if kills are only done with specified weapon(s)
 {
     level endon("end_game");
     level endon("start_of_round");
 
     self thread GauntletHud(challenge);
-    if (isdefined(watch_nukes) && watch_nukes)
-    {
-        self thread WatchPlayerStat(challenge, "nuke_pickedup", 0, 0, undefined, undefined, undefined, true);    
-    }
 
     ConditionsInProgress(true);
     current_round = level.round_number;
@@ -1491,7 +1421,7 @@ CheckUsedWeapon(challenge, watch_nukes)
 
     while (current_round == level.round_number)
     {
-        level waittill_any ("zombie_killed", "end_of_round");
+        level waittill_any ("zombie_killed", "end_of_round", "nuke_taken");
 
         proper_gun_used = false;
         
@@ -1504,6 +1434,7 @@ CheckUsedWeapon(challenge, watch_nukes)
         killed_stick = false;           // Staff revive stick
         killed_shield = false;          // Shield
         killed_melee = false;           // Melee weapons
+        killed_nuke = false;            // Nukes
 
         // DEFINE MURDER WEAPON
 
@@ -1531,6 +1462,12 @@ CheckUsedWeapon(challenge, watch_nukes)
         else if (level.weapon_mod == "MOD_MELEE" && isinarray(melee_array, level.weapon_used))
         {
             killed_melee = true;
+        }
+        // Nukes
+        else if (flag("nuke_taken"))
+        {
+            flag_clear("nuke_taken");
+            killed_nuke = true;
         }
         // None weapon exceptions
         else if (level.weapon_used == "none")
@@ -1602,7 +1539,7 @@ CheckUsedWeapon(challenge, watch_nukes)
                     proper_gun_used = true;
                 }
                 // Watch for instakill
-                else if (!killed_lethals && !killed_robots && !killed_tank && !killed_drone && !killed_stick && !killed_shield && !killed_melee && killed_insta)
+                else if (!killed_lethals && !killed_robots && !killed_tank && !killed_drone && !killed_stick && !killed_shield && !killed_melee && !killed_nuke && killed_insta)
                 {
                     pass_insta = true;
                     foreach (player in level.players)
@@ -1626,6 +1563,11 @@ CheckUsedWeapon(challenge, watch_nukes)
                     {
                         proper_gun_used = true;
                     }
+                }
+                // Watch for nukes
+                else if (killed_nuke)
+                {
+                    proper_gun_used = true;
                 }
                 // Watch for env kills
                 else if (killed_robots || killed_tank)
@@ -1653,13 +1595,18 @@ CheckUsedWeapon(challenge, watch_nukes)
             print("killed_stick: " + killed_stick);
             print("killed_shield: " + killed_shield);
             print("killed_melee: " + killed_melee);
+            print("killed_nuke: " + killed_nuke);
 
             if (killed_insta)
             {
                 iPrintLn("Kill: Instakill (" + held_weapon + ")");
             } 
             
-            if (killed_lethals)
+            if (killed_nuke)
+            {
+                iPrintLn("Kill: Nuke");
+            }
+            else if (killed_lethals)
             {
                 iPrintLn("Kill: Lethal equipment");
             }
@@ -1713,72 +1660,121 @@ CheckUsedWeapon(challenge, watch_nukes)
             level.forbidden_weapon_used = true;
         }
 
-        flag_clear("drop_gone");
         wait 0.05;
     }
     wait 0.1;
     ConditionsMet(true);
 }
 
-// InstaWatcher(challenge)
-// {
-//     level endon ("end_of_round");
-//     level endon ("drop_gone");
-
-//     instas_taken = 0;
-//     foreach (player in level.players)
-//     {
-//         instas_taken += player.pers["insta_kill_pickedup"];
-//     }
-
-//     // watch_on = array(9, 19, 23, 16);
-//     while (1) //(isinarray(watch_on, level.round_number))
-//     {
-//         instas_watching = 0;
-//         foreach (player in level.players)
-//         {
-//             instas_watching += player.pers["insta_kill_pickedup"];
-//         }
-
-//         if (instas_taken == instas_watching)
-//         {
-//             wait 0.05;
-//             continue;
-//         }
-
-//         self thread CountDropLength();
-
-//         while (1)
-//         {
-//             level waittill_any ("drop_gone", "zombie_killed");
-
-//             if (flag("drop_gone"))
-//             {
-//                 break;
-//             }
-
-//             held_weapon = getCurrentWeapon();
-//             if (!isinarray(allowed_weapons, held_weapon))
-//             {
-//                 if (isdefined(level.debug_weapons) && level.debug_weapons)
-//                 {
-//                     iPrintLn("^1Kill: Instakill (" + held_weapon + ")");
-//                 }
-//                 level.forbidden_weapon_used = true;
-//                 break;
-//             }
-//             wait 0.05;
-//         }
-//         flag_clear("drop_gone");
-//         wait 0.05;
-//     }
-// }
-
-CountDropLength()
+DropWatcher()
+// Count drops to level variables and send notify each time drop is taken
 {
-    wait 30;
-    flag_set("drop_gone");
-    level notify ("drop_gone");
+    level.current_drops_nuke = 0;
+    level.current_drops_insta = 0;
+    level.current_drops_max = 0;
+    level.current_drops_double = 0;
+    level.current_drops_blood = 0; 
+    level.current_drops_point = 0;
+    level.current_drops_sale = 0;
+    
+    x = 0;
+    while (1)
+    {
+        nukes_temp = 0;
+        instas_temp = 0;
+        maxes_temp = 0;
+        double_temp = 0;
+        blood_temp = 0;
+        points_temp = 0;
+        sales_temp = 0;
+
+        foreach(player in level.players)
+        {
+            nukes_temp += player.pers["nuke_pickedup"];
+            instas_temp += player.pers["insta_kill_pickedup"];
+            maxes_temp += player.pers["full_ammo_pickedup"];
+            double_temp += player.pers["double_points_pickedup"];
+            blood_temp += player.pers["zombie_blood_pickedup"];
+            sales_temp += player.pers["fire_sale_pickedup"];
+            // Bonus points doesn't work
+            // points_temp += (player.pers["bonus_points_team_pickedup"] + player.pers["bonus_points_player_pickedup"]);
+        }
+
+        if (nukes_temp > level.current_drops_nuke)
+        {
+            level.current_drops_nuke = nukes_temp;
+            level notify("nuke_taken");
+            flag_set("nuke_taken");
+            if (isdefined(level.debug_weapons) && level.debug_weapons)
+            {
+                iPrintLn("Nuke taken");
+            }
+            
+        }
+        else if (instas_temp > level.current_drops_insta)
+        {
+            level.current_drops_insta = instas_temp;
+            level notify("insta_taken");
+            flag_set("insta_taken");
+            if (isdefined(level.debug_weapons) && level.debug_weapons)
+            {
+                iPrintLn("Insta taken");
+            }        
+        }
+        else if (maxes_temp > level.current_drops_max)
+        {
+            level.current_drops_max = maxes_temp;
+            level notify ("max_taken");
+            flag_set("max_taken");
+            if (isdefined(level.debug_weapons) && level.debug_weapons)
+            {
+                iPrintLn("Max taken");
+            }        
+        }
+        else if (double_temp > level.current_drops_double)
+        {
+            level.current_drops_double = double_temp;
+            level notify ("double_taken");
+            flag_set("double_taken");
+            if (isdefined(level.debug_weapons) && level.debug_weapons)
+            {
+                iPrintLn("X2 taken");
+            }        
+        }
+        else if (blood_temp > level.current_drops_blood)
+        {
+            level.current_drops_blood = blood_temp;
+            level notify ("blood_taken");
+            flag_set("blood_taken");
+            if (isdefined(level.debug_weapons) && level.debug_weapons)
+            {
+                iPrintLn("Blood taken");
+            }        
+        }
+        else if (sales_temp > level.current_drops_sale)
+        {
+            level.current_drops_sale = sales_temp;
+            level notify ("sale_taken");
+            flag_set("sale_taken");
+            if (isdefined(level.debug_weapons) && level.debug_weapons)
+            {
+                iPrintLn("Firesale taken");
+            }       
+        }
+        else if (points_temp > level.current_drops_point)
+        {
+            // level.current_drops_point = points_temp;
+            // level notify ("points_taken");
+            // flag_set("points_taken");
+            // if (isdefined(level.debug_weapons) && level.debug_weapons)
+            // {
+            //     iPrintLn("Points taken");
+            // }       
+        }
+
+        // Clear flags on readpoint
+        wait 0.05;
+    }
 }
 
 actor_killed_override( einflictor, attacker, idamage, smeansofdeath, sweapon, vdir, shitloc, psoffsettime )

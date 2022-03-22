@@ -390,6 +390,58 @@ DebugHud(debug)
     }
 }
 
+WatchPlayerStats(challenge, stat_1, stat_2)
+// Function turns on boolean in case of zombies being shot, trapped or tanked
+{
+    level endon("end_game");
+    level endon("start_of_round");
+
+    self thread GauntletHud(challenge);
+    self thread EnvironmentKills();
+    if (challenge == 2)
+    {
+        ConditionsInProgress(true);
+    }
+    rnd = level.round_number;
+
+    // Grab stats on round start
+    beg_stat1 = 0;
+    beg_stat2 = 0;
+    foreach (player in level.players)
+    {
+        beg_stat1 += player.pers[stat_1];
+        beg_stat2 += player.pers[stat_2];
+    }
+
+    beg_difference = (beg_stat1 - beg_stat2);
+
+    // Watch stats midround
+    rnd_stat1 = beg_stat1;
+    rnd_stat2 = beg_stat2;
+    while (level.round_number == rnd)
+    {
+        rnd_stat1 = 0;
+        rnd_stat2 = 0;
+        foreach (player in level.players)
+        {
+            rnd_stat1 += player.pers[stat_1];
+            rnd_stat2 += player.pers[stat_2];
+        }
+
+        get_difference = (rnd_stat1 - rnd_stat2);
+        // print(get_difference + " / " + beg_difference);
+
+        if (get_difference != beg_difference || flag("env_kill"))
+        {
+            level.forbidden_weapon_used = true;
+        }
+        
+        wait 0.05;
+    }
+    wait 0.1;
+    ConditionsMet(true);
+}
+
 // All 3 have to be emptied otherwise they somehow work lol
 // player_too_many_weapons_monitor_takeaway_sequence_override()
 // {
