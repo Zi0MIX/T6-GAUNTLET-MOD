@@ -49,7 +49,7 @@ OnPlayerConnect()
 
 	level waittill("initial_players_connected");
     level thread SetDvars();
-    level thread DevDebug("raygun_mark2_upgraded_zm", 13);   // For debugging
+    level thread DevDebug("raygun_mark2_upgraded_zm");   // For debugging
 
     flag_wait("initial_blackscreen_passed");
 
@@ -77,7 +77,7 @@ OnPlayerConnect()
         // Only kill with melee (except for shield)
         else if (level.round_number == 2)
         {
-            level thread WatchPlayerStats(2, "kills", "melee_kills");
+            level thread CheckUsedWeapon(2, true);
         }
 
         // Stay still
@@ -864,7 +864,7 @@ GeneratorWatcher()
     }
 }
 
-WatchPlayerStat(challenge, stat_1, multi_solo, multi_coop, stat_sum, sum_range_down, sum_range_up)
+WatchPlayerStat(challenge, stat_1, multi_solo, multi_coop, stat_sum, sum_range_down, sum_range_up, use_forbidden_weapons)
 // Function watches for a single provided stat (guns from box)
 {
     level endon("end_game");
@@ -873,6 +873,11 @@ WatchPlayerStat(challenge, stat_1, multi_solo, multi_coop, stat_sum, sum_range_d
     self thread GauntletHud(challenge);
     rnd = level.round_number;
     beginning_stat_sum = 0;
+
+    if (!isdefined(use_forbidden_weapons))
+    {
+        use_forbidden_weapons = false;
+    }
 
     // Grab stats to player variables on round start and sum stats
     foreach (player in level.players)
@@ -981,7 +986,7 @@ WatchPlayerStat(challenge, stat_1, multi_solo, multi_coop, stat_sum, sum_range_d
         // print("proper_boxers: " + proper_boxers); // For debugging
 
         // Flow of the challenge 9 already defined in CheckUsedWeapon()
-        if (challenge == 9 || challenge == 19 || challenge == 23 || challenge == 26 || challenge == 28)
+        if (use_forbidden_weapons)
         {
             if (proper_boxers > 0)
             {
@@ -1459,14 +1464,18 @@ WatchPerkMidRound(perk)
     }
 }
 
-CheckUsedWeapon(challenge)
+CheckUsedWeapon(challenge, watch_nukes)
 // Function verifies if kills are only done with specified weapon(s)
 {
     level endon("end_game");
     level endon("start_of_round");
 
     self thread GauntletHud(challenge);
-    self thread WatchPlayerStat(challenge, "nuke_pickedup", 0, 0, undefined, undefined, undefined);
+    if (isdefined(watch_nukes) && watch_nukes)
+    {
+        self thread WatchPlayerStat(challenge, "nuke_pickedup", 0, 0, undefined, undefined, undefined, true);    
+    }
+
     ConditionsInProgress(true);
     current_round = level.round_number;
     
@@ -1560,62 +1569,74 @@ CheckUsedWeapon(challenge)
         }
 
         // COMPARE MEANS OF DEATH AGAINST CHALLENGES
-        if (challenge == 9 || challenge == 19 || challenge == 23 || challenge == 26)
+        if (challenge == 2 || challenge == 9 || challenge == 19 || challenge == 23 || challenge == 26)
         {
-            // Define weapon list for a challenge
-            if (challenge == 9 || challenge == 19)
+            // CASE = MELEE
+            if (challenge == 2)
             {
-                allowed_weapons = array_copy(mp40_array);
-            }
-            else if (challenge == 23)
-            {
-                allowed_weapons = array_copy(mp44_unpap_array);
-            }
-            else if (challenge == 26)
-            {
-                allowed_weapons = array_copy(m14_array);
-            }
-
-            // Define if proper gun was used
-            if (isinarray(allowed_weapons, level.weapon_used))
-            {
-                proper_gun_used = true;
-            }
-            // Watch for instakill
-            else if (!killed_lethals && !killed_robots && !killed_tank && !killed_drone && !killed_stick && !killed_shield && killed_melee && killed_insta)
-            {
-                pass_insta = true;
-                foreach (player in level.players)
-                {
-                    if (player.clientid == level.killer_name)
-                    {
-                        held_weapon = player getCurrentWeapon();
-                        if (!isinarray(allowed_weapons, held_weapon))
-                        {
-                            pass_insta = false;
-                        }
-                    }
-                }
-
-                if (!isdefined(held_weapon))
-                {
-                    held_weapon = "undefined";
-                }
-
-                if (pass_insta)
+                if ((killed_insta && killed_melee) || killed_melee)
                 {
                     proper_gun_used = true;
                 }
             }
-            // Watch for env kills
-            else if (killed_robots || killed_tank)
+            // CASE = WEAPONS
+            else
             {
-                proper_gun_used = true;
-            }
-            // Watch for despawns
-            else if (killed_worldspawn && !killed_insta)
-            {
-                proper_gun_used = true;
+                // Define weapon list for a challenge
+                if (challenge == 9 || challenge == 19)
+                {
+                    allowed_weapons = array_copy(mp40_array);
+                }
+                else if (challenge == 23)
+                {
+                    allowed_weapons = array_copy(mp44_unpap_array);
+                }
+                else if (challenge == 26)
+                {
+                    allowed_weapons = array_copy(m14_array);
+                }
+
+                // Define if proper gun was used
+                if (isinarray(allowed_weapons, level.weapon_used))
+                {
+                    proper_gun_used = true;
+                }
+                // Watch for instakill
+                else if (!killed_lethals && !killed_robots && !killed_tank && !killed_drone && !killed_stick && !killed_shield && !killed_melee && killed_insta)
+                {
+                    pass_insta = true;
+                    foreach (player in level.players)
+                    {
+                        if (player.clientid == level.killer_name)
+                        {
+                            held_weapon = player getCurrentWeapon();
+                            if (!isinarray(allowed_weapons, held_weapon))
+                            {
+                                pass_insta = false;
+                            }
+                        }
+                    }
+
+                    if (!isdefined(held_weapon))
+                    {
+                        held_weapon = "undefined";
+                    }
+
+                    if (pass_insta)
+                    {
+                        proper_gun_used = true;
+                    }
+                }
+                // Watch for env kills
+                else if (killed_robots || killed_tank)
+                {
+                    proper_gun_used = true;
+                }
+                // Watch for despawns
+                else if (killed_worldspawn && !killed_insta)
+                {
+                    proper_gun_used = true;
+                }
             }
         }
 
@@ -1632,14 +1653,15 @@ CheckUsedWeapon(challenge)
             print("killed_stick: " + killed_stick);
             print("killed_shield: " + killed_shield);
             print("killed_melee: " + killed_melee);
+
+            if (killed_insta)
+            {
+                iPrintLn("Kill: Instakill (" + held_weapon + ")");
+            } 
             
             if (killed_lethals)
             {
                 iPrintLn("Kill: Lethal equipment");
-            }
-            else if (killed_insta)
-            {
-                iPrintLn("Kill: Instakill (" + held_weapon + ")");
             }
             else if (killed_robots)
             {
@@ -1665,7 +1687,7 @@ CheckUsedWeapon(challenge)
             {
                 iPrintLn("Kill: Shield");
             }
-            else if (proper_gun_used)
+            else if (proper_gun_used && !killed_insta)
             {
                 iPrintLn("^2Kill: " + level.weapon_used);
             }
