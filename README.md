@@ -24,10 +24,10 @@ Patch that emulates gauntlet gamemode from BO4 on BO2 Origins
 20. Protect church.
 21. Own five perks at the end of the round.
 22. All perks are offline.
-23. [Only kill with unpacked STG44.]
+23. Only kill with First Room guns.
 24. Move of get hurt.
 25. Survive with randomized loadout.
-26. [Only kill with m14.]
+26. Kill 48 (+24 for each player) zombies with the tank
 27. Only kill zombies indoors.
 28. Don't pick up any drops.
 29. [only kill zombies in mud]

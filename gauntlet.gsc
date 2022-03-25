@@ -228,7 +228,7 @@ OnPlayerConnect()
         // Only kill with m14
         else if (level.round_number == 26)
         {
-            level thread CheckUsedWeapon(26);
+            // level thread 
         }  
 
         // Protect church
@@ -503,7 +503,7 @@ ZombieCounterHud()
 	
 }
 
-GauntletHud(challenge)
+GauntletHud(challenge, relative_var)
 // Hud for printing challenge goals, function doesn't yet work properly
 {
     self endon("disconnect");
@@ -513,6 +513,11 @@ GauntletHud(challenge)
     {
         gauntlet_hud destroy_hud();
     }
+    if (!isdefined(relative_var))
+    {
+        relative_var = 0;
+    }
+
     gauntlet_hud = newHudElem();
     gauntlet_hud.alignx = "right";
     gauntlet_hud.aligny = "middle";
@@ -636,7 +641,7 @@ GauntletHud(challenge)
     }
     else if (challenge == 23)
     {
-        gauntlet_hud settext("Only kill with unpacked STG44");
+        gauntlet_hud settext("Only kill with First Room guns");
     }
     else if (challenge == 24)
     {
@@ -648,7 +653,7 @@ GauntletHud(challenge)
     }
     else if (challenge == 26)
     {
-        gauntlet_hud settext("Only kill with M14");
+        gauntlet_hud settext("Kill " + relative_var + " zombies with tank");
     }
     else if (challenge == 27)
     {
@@ -1406,7 +1411,10 @@ CheckUsedWeapon(challenge)
 
     self thread GauntletHud(challenge);
 
-    ConditionsInProgress(true);
+    if (challenge != 26)
+    {
+        ConditionsInProgress(true);
+    }
     current_round = level.round_number;
     
     gun_mods_array = array("MOD_RIFLE_BULLET", "MOD_PISTOL_BULLET", "MOD_PROJECTILE_SPLASH", "MOD_PROJECTILE", "MOD_MELEE");
@@ -1416,8 +1424,9 @@ CheckUsedWeapon(challenge)
     melee_array = array("knife_zm", "one_inch_punch_air_zm", "one_inch_punch_fire_zm", "one_inch_punch_ice_zm", "one_inch_punch_lightning_zm", "one_inch_punch_upgraded_zm", "one_inch_punch_zm", "staff_air_melee_zm", "staff_fire_melee_zm", "staff_lightning_melee_zm", "staff_water_melee_zm");
 
     mp40_array = array("mp40_zm", "mp40_stalker_zm", "mp40_upgraded_zm", "mp40_stalker_upgraded_zm");
-    m14_array = array("m14_zm", "m14_upgraded_zm");
-    mp44_unpap_array = array("mp44_zm");
+    first_room_array = array("c96_zm", "c96_upgraded_zm", "ballista_zm", "ballista_upgraded_zm", "m14_zm", "m14_upgraded_zm", "galil_zm", "galil_upgraded_zm", "mp44_zm", "mp44_upgraded_zm", "scar_zm", "scar_upgraded_zm")
+    // m14_array = array("m14_zm", "m14_upgraded_zm");
+    // mp44_unpap_array = array("mp44_zm");
 
     while (current_round == level.round_number)
     {
@@ -1506,7 +1515,7 @@ CheckUsedWeapon(challenge)
         }
 
         // COMPARE MEANS OF DEATH AGAINST CHALLENGES
-        if (challenge == 2 || challenge == 9 || challenge == 19 || challenge == 23 || challenge == 26)
+        if (challenge == 2 || challenge == 9 || challenge == 19 || challenge == 23)
         {
             // CASE = MELEE
             if (challenge == 2)
@@ -1514,6 +1523,13 @@ CheckUsedWeapon(challenge)
                 if ((killed_insta && killed_melee) || killed_melee)
                 {
                     proper_gun_used = true;
+                }
+            }
+            if (challenge == 26)
+            {
+                if (killed_tank)
+                {
+                    level.killed_with_tank++;
                 }
             }
             // CASE = WEAPONS
@@ -1526,11 +1542,7 @@ CheckUsedWeapon(challenge)
                 }
                 else if (challenge == 23)
                 {
-                    allowed_weapons = array_copy(mp44_unpap_array);
-                }
-                else if (challenge == 26)
-                {
-                    allowed_weapons = array_copy(m14_array);
+                    allowed_weapons = array_copy(first_room_array);
                 }
 
                 // Define if proper gun was used
@@ -1655,7 +1667,7 @@ CheckUsedWeapon(challenge)
         }
 
         // END GAME IF CONDITION NOT MET
-        if (!proper_gun_used && current_round == level.round_number)
+        if ((!proper_gun_used && current_round == level.round_number) && (challenge != 26))
         {
             level.forbidden_weapon_used = true;
         }
@@ -1663,7 +1675,10 @@ CheckUsedWeapon(challenge)
         wait 0.05;
     }
     wait 0.1;
-    ConditionsMet(true);
+    if (challenge != 26)
+    {
+        ConditionsMet(true);
+    }
 }
 
 DropWatcher()
@@ -2890,6 +2905,40 @@ BreakLoopOnRoundEnd()
     level.breakearly = false;
     level waittill ("end_of_round");
     level.breakearly = true;
+}
+
+TankEm(challenge)
+// Function checks if enough zombies were killed by the tank
+{
+    level endon("end_game");
+    level endon("start_of_round"); 
+    self endon("disconnect");
+
+    // Define amount of zombies to kill with tank
+    tank_multiplier = 0;
+    if (level.players.size > 1)
+    {
+        tank_multiplier = 24 * (level.players.size - 1);
+    }
+    zombies_to_tank = 48 + tank_multiplier;
+
+    self thread GauntletHud(challenge, zombies_to_tank);
+    self thread CheckUsedWeapon(challenge);
+    current_round = level.round_number;
+    level.killed_with_tank = 0;
+    while (current_round == level.round_number)
+    {
+        if (level.killed_with_tank > 0 && level.killed_with_tank < zombies_to_tank && !level.conditions_in_progress)
+        {
+            ConditionsInProgress(true);
+        }
+
+        else if (level.killed_with_tank >= zombies_to_tank && !level.conditions_met)
+        {
+            ConditionsMet(true);
+        }
+        wait 0.05;
+    }
 }
 
 full_ammo_powerup_override(drop_item, player)
