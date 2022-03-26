@@ -56,7 +56,7 @@ OnPlayerConnect()
 
 	level waittill("initial_players_connected");
     level thread SetDvars();
-    level thread DevDebug("raygun_mark2_zm", 29);   // For debugging
+    level thread DevDebug("raygun_mark2_upgraded_zm", 16);   // For debugging
 
     flag_wait("initial_blackscreen_passed");
 
@@ -2061,6 +2061,7 @@ TooManyPanzers(challenge)
     level endon("start_of_round");
 
     self thread PanzerDeathWatcher();
+    self thread ScanCrazyPlace();
     self thread GauntletHud(challenge);
 
     // level.next_mechz_round = challenge;  // Debugging
@@ -2318,6 +2319,66 @@ PlayerInZone()
             break;
         }
         break;
+    }
+}
+
+ScanCrazyPlace(time)
+// Function serves as a safety for panzer rounds, player will be punished for staying in crazy place
+{
+    level endon("end_game");
+    level endon("end_of_round");
+
+    crazy_place_array = array("zone_chamber_0", "zone_chamber_1", "zone_chamber_2", "zone_chamber_3", "zone_chamber_4", "zone_chamber_5", "zone_chamber_6", "zone_chamber_7", "zone_chamber_8");
+    if (!isdefined(time))
+    {
+        time = 30;
+    }
+
+    ticks = (time * (level.players.size * 0.75));
+    while (1)
+    {
+        foreach (player in level.players)
+        {
+            if (!isdefined(player.imm))
+            {
+                player.imm = 0;
+            }
+
+            current_zone = player get_current_zone();
+            if (isinarray(crazy_place_array, current_zone) && !player player_is_in_laststand())
+            {
+                if (ticks > 0 || player.imm > 0)
+                {
+                    if (isdefined(level.debug_weapons) && level.debug_weapons)
+                    {
+                        iPrintLn("Ticks: " + ticks);
+                        player iPrintLn("Imm: " + player.imm);
+                        print(player.name + " downed: " + player player_is_in_laststand());
+                    }
+
+                    ticks -= 1;     // -- doesn't work?
+                    player.imm -= 1;
+                    player iPrintLn("Leave immediately");
+                    player dodamage(player.maxhealth / 30, player.origin);
+                }
+                else
+                {
+                    player dodamage(player.maxhealth, player.origin);
+                    player iPrintLn("You've been warned");
+                    player.imm = 10;
+                }
+
+                if (player.imm < 0)
+                {
+                    player.imm = 0;
+                }
+            }
+        }
+        if (ticks < 0)
+        {
+            ticks = 0;
+        }
+        wait 1;
     }
 }
 
