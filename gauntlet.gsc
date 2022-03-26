@@ -370,17 +370,9 @@ EndGameWatcher()
 
         else if (level.round_number >= 30)
         {
-            maps\mp\zombies\_zm_game_module::freeze_players( 1 );
-            level notify("game_won"); // Need to code that
-        }
-
-        else if (level.round_number >= 28) // For beta only
-        {
-            wait 5;
-            EndGame("you win beta kappa");
+            WinGame();
         }
         
-
         wait 1;
     }
 }
@@ -401,18 +393,35 @@ ForbiddenWeaponWatcher()
     }
 }
 
-EndGame(iprint)
+EndGame()
 // Function ends the game immidiately
 {
-    if (!isdefined(iprint))
+    if (isdefined(level.debug_weapons) && level.debug_weapons)
     {
-        iprint = "you bad";
+        iprintln("you bad");
     }
-    iprintln(iprint);
     ConditionsMet(false);
     ConditionsInProgress(false);
     wait 0.1;
     maps\mp\zombies\_zm_game_module::freeze_players(1);
+    level notify("end_game");
+}
+
+WinGame()
+// Function ends the game with you win screen
+{
+    if (isdefined(level.debug_weapons) && level.debug_weapons)
+    {
+        iprintln("you win");
+    }
+    level._supress_survived_screen = 1;
+    level.completition_time = int(gettime() / 1000);
+    level.custom_end_screen = ::CustomEndScreen;
+    ConditionsMet(false);
+    ConditionsInProgress(false);
+    wait 0.1;
+    maps\mp\zombies\_zm_game_module::freeze_players( 1 );
+    // level notify("game_won");
     level notify("end_game");
 }
 
@@ -434,7 +443,7 @@ DevDebug(weapon, round)
 	self endon( "disconnect" );
 
     level.wait_for_round = true;
-    level.debug_weapons = true;     // debug CheckUsedWeapon()
+    level.debug_weapons = true;
 
     if (isdefined(round))
     {
@@ -782,6 +791,26 @@ GauntletHudAfteraction()
     {
         return (0.8, 0, 0);
     }
+}
+
+CustomEndScreen()
+// Custom text for end game to display time
+{
+    self endon ("disconnect");
+
+    win_hud = newHudElem();
+    win_hud.alignx = "center";
+    win_hud.aligny = "middle";
+    win_hud.horzalign = "center";
+    win_hud.vertalign = "middle";
+    win_hud.x = 0;
+    win_hud.y = -130;
+    win_hud.fontscale = 2.4;
+    win_hud.hidewheninmenu = 1;
+    win_hud.color = ( 1, 1, 1 );
+    win_hud settext("YOU WIN\t" + to_mins(level.completition_time));
+    win_hud fadeovertime(1);    
+    win_hud.alpha = 1;
 }
 
 BetaHud(beta_version)
