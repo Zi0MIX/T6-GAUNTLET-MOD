@@ -627,25 +627,11 @@ GauntletHud(challenge, relative_var)
     }
     else if (challenge == 6)
     {
-        if (level.players.size == 1)
-        {
-            gauntlet_hud settext("Dig up 3 piles");
-        }
-        else
-        {
-            gauntlet_hud settext("Dig up a pile");
-        }
+        gauntlet_hud settext("Dig up " + relative_var);
     }
     else if (challenge == 7)
     {
-        if (level.players.size == 1)
-        {
-            gauntlet_hud settext("Kill 6 zombies with melee attacks");
-        }
-        else
-        {
-            gauntlet_hud settext("Kill 12 zombies total with melee attacks");
-        }
+        gauntlet_hud settext("Kill " + relative_var + " zombies total with melee attacks");
     }
     else if (challenge == 8)
     {
@@ -685,14 +671,7 @@ GauntletHud(challenge, relative_var)
     }
     else if (challenge == 17)
     {
-        if (level.players.size == 1)
-        {
-            gauntlet_hud settext("Dig up 7 piles");
-        }
-        else
-        {
-            gauntlet_hud settext("Dig up 2 piles");
-        }
+        gauntlet_hud settext("Dig up " + relative_var + " piles");
     }
     else if (challenge == 18)
     {
@@ -992,7 +971,34 @@ WatchPlayerStat(challenge, stat_1, multi_solo, multi_coop, stat_sum, sum_range_d
     level endon("end_game");
     level endon("start_of_round");
 
-    self thread GauntletHud(challenge);
+    // Hardcode values for hud
+    rel_var = 0;
+    if (challenge == 6)
+    {
+        rel_var = "3 piles";
+        if (level.players.size == 1)
+        {
+            rel_var = "a pile";
+        }
+    }
+    else if (challenge == 7)
+    {
+        rel_var = 12;
+        if (level.players.size == 1)
+        {
+            rel_var = 6;
+        }
+    }
+    else if (challenge == 17)
+    {
+        rel_var = 2;
+        if (level.players.size == 1)
+        {
+            rel_var = 7;
+        }
+    }
+
+    self thread GauntletHud(challenge, rel_var);
     rnd = level.round_number;
     beginning_stat_sum = 0;
 
