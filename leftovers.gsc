@@ -442,6 +442,149 @@ WatchPlayerStats(challenge, stat_1, stat_2)
     ConditionsMet(true);
 }
 
+PerkWatcher(required_perks)
+// Function checks for the amount of perks during the round
+{
+    current_perks = array(0, 0, 0, 0, 0, 0, 0, 0);
+    got_perks_right = array(false, false, false, false, false, false, false, false);
+    current_round = level.round_number;
+    while (current_round == level.round_number)
+    {
+        level.proper_players = 0;
+
+        // Reset current perk array
+        foreach (perk in current_perks)
+        {
+            perk = 0;
+        }
+
+        // Get amount of perks from each player into the array
+        i = 0;
+        foreach (player in level.players)
+        {
+            current_perks[i] = player.num_perks;
+            i++;
+        }
+
+        // Check if each player has right amount of perks and put results into an array
+        i = 0;
+        foreach (perk in current_perks)
+        {
+            if (perk < required_perks && i < level.players.size)
+            {
+                got_perks_right[i] = false; // I think problem is in this if statement
+
+            }
+            else
+            {
+                got_perks_right[i] = true;
+            }
+            i++;
+        }
+
+        // Count players who have right amount of perks
+        foreach (got_right in got_perks_right)
+        {
+            if (got_right)
+            {
+                level.proper_players++;
+            }
+        }
+        level.proper_players -= (8 - level.players.size);
+
+        // Compare against lobby size (up to 8 players for pluto)
+        if (level.proper_players > 0)
+        {
+            ConditionsInProgress(true);
+        }
+        else
+        {
+            ConditionsMet(false);
+            ConditionsInProgress(false);
+        }
+
+        wait 0.05;
+    }
+}
+
+EachPerkWatcher()
+// Function checks how many of each perks players own 
+{
+    current_round = level.round_number;
+    while (current_round == level.round_number)
+    {
+        hasjug = 0;
+        hasquick = 0;
+        hasdoubletap = 0;
+        hasspeed = 0;
+        hasphd = 0;
+        hasdeadshot = 0;
+        hasstam = 0;
+        hascherry = 0;
+        hasmule = 0;
+        foreach (player in level.players)
+        {
+            if (!player player_is_in_laststand())
+            {
+                if (player hasperk( "specialty_armorvest"))
+                {
+                    hasjug++;
+                }
+
+                if (player hasperk( "specialty_quickrevive"))
+                {
+                    hasquick++;
+                }
+
+                if (player hasperk( "specialty_rof"))
+                {
+                    hasdoubletap++;
+                }
+
+                if (player hasperk( "specialty_fastreload"))
+                {
+                    hasspeed++;
+                }
+
+                if (player hasperk( "specialty_flakjacket"))
+                {
+                    hasphd++;
+                }
+
+                if (player hasperk( "specialty_deadshot"))
+                {
+                    hasdeadshot++;
+                }
+
+                if (player hasperk( "specialty_longersprint"))
+                {
+                    hasstam++;
+                }
+
+                if (player hasperk( "specialty_grenadepulldeath"))
+                {
+                    hascherry++;
+                }
+
+                if (player hasperk( "specialty_additionalprimaryweapon"))
+                {
+                    hasmule++;
+                }
+            }
+        }
+        level.players_jug = hasjug;
+        level.players_quick = hasquick;
+        level.players_doubletap = hasdoubletap;
+        level.players_speed = hasspeed;
+        level.players_phd = hasphd;
+        level.players_deadshot = hasdeadshot;
+        level.players_stam = hasstam;
+        level.players_cherry = hascherry;
+        level.players_mulekick = hasmule;
+        wait 0.05;
+    }
+}
+
 // All 3 have to be emptied otherwise they somehow work lol
 // player_too_many_weapons_monitor_takeaway_sequence_override()
 // {

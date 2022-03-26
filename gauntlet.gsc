@@ -14,6 +14,7 @@
 #include maps/mp/zm_tomb_utility;
 #include maps/mp/gametypes_zm/_tweakables;
 #include maps/mp/gametypes_zm/_shellshock;
+#include maps/mp/gametypes_zm/_weapons;
 #include maps/mp/zombies/_zm_game_module;
 #include maps/mp/zombies/_zm_net;
 #include maps/mp/zombies/_zm_ai_mechz;
@@ -55,7 +56,7 @@ OnPlayerConnect()
 
 	level waittill("initial_players_connected");
     level thread SetDvars();
-    level thread DevDebug();   // For debugging
+    level thread DevDebug("raygun_mark2_zm", 29);   // For debugging
 
     flag_wait("initial_blackscreen_passed");
 
@@ -241,6 +242,12 @@ OnPlayerConnect()
         else if (level.round_number == 28)
         {
             level thread WatchPlayerStat(28, "drops", 0, 0, undefined, undefined, undefined);
+        }   
+
+        // Guns eat up twice as much ammo
+        else if (level.round_number == 29)
+        {
+            level thread AmmoController(29);
         }   
 
         level waittill("start_of_round"); // Careful not to add this inside normal fucntions
@@ -633,7 +640,7 @@ GauntletHud(challenge, relative_var)
     }
     else if (challenge == 21)
     {
-        gauntlet_hud settext("Own five perks at the end of the round");
+        gauntlet_hud settext("Own " + relative_var + " perks at the end of the round");
     }
     else if (challenge == 22)
     {
@@ -662,6 +669,10 @@ GauntletHud(challenge, relative_var)
     else if (challenge == 28)
     {
         gauntlet_hud settext("Don't pick up any drops");
+    }
+    else if (challenge == 29)
+    {
+        gauntlet_hud settext("Value your ammo");
     }
 
     while (level.round_number == challenge)
@@ -1150,21 +1161,28 @@ WatchPerks(challenge, number_of_perks)
     level endon("end_game");
     level endon("start_of_round");
 
-    level.proper_players = 0;
-    self thread GauntletHud(challenge);
     if (!isdefined(number_of_perks))
     {
         number_of_perks = 1;
     }
+    // Pluto compatibility
+    else if (number_of_perks > 4 && level.players.size > 4)
+    {
+        number_of_perks = 4;
+    }
     
+    self thread GauntletHud(challenge, number_of_perks);
+    level.proper_players = 0;
+
     if (challenge == 8)
     {
-        self thread EachPerkWatcher();
+        self thread PerkTracker();
         self thread WatchPerkMidRound("jug");
     }
     else
     {
-        self thread PerkWatcher(number_of_perks);
+        self thread PerkTracker();
+        self thread WatchPerkMidRound("all");
     }
     
     level waittill ("end_of_round");
@@ -1178,75 +1196,15 @@ WatchPerks(challenge, number_of_perks)
     }
 }
 
-PerkWatcher(required_perks)
-// Function checks for the amount of perks during the round
+PerkTracker()
+// Function checks which and how many perks players have
 {
-    current_perks = array(0, 0, 0, 0, 0, 0, 0, 0);
-    got_perks_right = array(false, false, false, false, false, false, false, false);
     current_round = level.round_number;
-    while (current_round == level.round_number)
+    foreach (player in level.players)
     {
-        level.proper_players = 0;
-
-        // Reset current perk array
-        foreach (perk in current_perks)
-        {
-            perk = 0;
-        }
-
-        // Get amount of perks from each player into the array
-        i = 0;
-        foreach (player in level.players)
-        {
-            current_perks[i] = player.num_perks;
-            i++;
-        }
-
-        // Check if each player has right amount of perks and put results into an array
-        i = 0;
-        foreach (perk in current_perks)
-        {
-            if (perk < required_perks && i < level.players.size)
-            {
-                got_perks_right[i] = false; // I think problem is in this if statement
-
-            }
-            else
-            {
-                got_perks_right[i] = true;
-            }
-            i++;
-        }
-
-        // Count players who have right amount of perks
-        foreach (got_right in got_perks_right)
-        {
-            if (got_right)
-            {
-                level.proper_players++;
-            }
-        }
-        level.proper_players -= (8 - level.players.size);
-
-        // Compare against lobby size (up to 8 players for pluto)
-        if (level.proper_players > 0)
-        {
-            ConditionsInProgress(true);
-        }
-        else
-        {
-            ConditionsMet(false);
-            ConditionsInProgress(false);
-        }
-
-        wait 0.05;
+        player.owned_perks = 0;
     }
-}
 
-EachPerkWatcher()
-// Function checks how many of each perks players own 
-{
-    current_round = level.round_number;
     while (current_round == level.round_number)
     {
         hasjug = 0;
@@ -1260,63 +1218,78 @@ EachPerkWatcher()
         hasmule = 0;
         foreach (player in level.players)
         {
-            if (!player player_is_in_laststand())
+            player.temp_owned_perks = 0;
+
+            if (player hasperk("specialty_armorvest"))
             {
-                if (player hasperk( "specialty_armorvest"))
-                {
-                    hasjug++;
-                }
-                level.players_jug = hasjug;
-
-                if (player hasperk( "specialty_quickrevive"))
-                {
-                    hasquick++;
-                }
-                level.players_quick = hasquick;
-
-                if (player hasperk( "specialty_rof"))
-                {
-                    hasdoubletap++;
-                }
-                level.players_doubletap = hasdoubletap;
-
-                if (player hasperk( "specialty_fastreload"))
-                {
-                    hasspeed++;
-                }
-                level.players_speed = hasspeed;
-
-                if (player hasperk( "specialty_flakjacket"))
-                {
-                    hasphd++;
-                }
-                level.players_phd = hasphd;
-
-                if (player hasperk( "specialty_deadshot"))
-                {
-                    hasdeadshot++;
-                }
-                level.players_deadshot = hasdeadshot;
-
-                if (player hasperk( "specialty_longersprint"))
-                {
-                    hasstam++;
-                }
-                level.players_stam = hasstam;
-
-                if (player hasperk( "specialty_grenadepulldeath"))
-                {
-                    hascherry++;
-                }
-                level.players_cherry = hascherry;
-
-                if (player hasperk( "specialty_additionalprimaryweapon"))
-                {
-                    hasmule++;
-                }
-                level.players_mulekick = hasmule;
+                hasjug++;
+                player.temp_owned_perks++;
             }
-        }
+
+            if (player hasperk("specialty_quickrevive"))
+            {
+                hasquick++;
+                player.temp_owned_perks++;
+            }
+
+            if (player hasperk("specialty_rof"))
+            {
+                hasdoubletap++;
+                player.temp_owned_perks++;
+            }
+            
+            if (player hasperk("specialty_fastreload"))
+            {
+                hasspeed++;
+                player.temp_owned_perks++;
+            }
+            
+            if (player hasperk("specialty_flakjacket"))
+            {
+                hasphd++;
+                player.temp_owned_perks++;
+            }  
+           
+            if (player hasperk("specialty_deadshot"))
+            {
+                hasdeadshot++;
+                player.temp_owned_perks++;
+            }
+            
+            if (player hasperk("specialty_longersprint"))
+            {
+                hasstam++;
+                player.temp_owned_perks++;
+            }   
+
+            if (player hasperk("specialty_grenadepulldeath"))
+            {
+                hascherry++;
+                player.temp_owned_perks++;
+            }
+
+
+            if (player hasperk("specialty_additionalprimaryweapon"))
+            {
+                hasmule++;
+                player.temp_owned_perks++;
+            }
+
+            // Sum the amount of perks player has on him rn
+            if (player.owned_perks != player.temp_owned_perks)
+            {
+                player.owned_perks = player.temp_owned_perks;
+            }                                            
+        } 
+        level.players_jug = hasjug;
+        level.players_quick = hasquick;
+        level.players_doubletap = hasdoubletap;
+        level.players_speed = hasspeed;
+        level.players_phd = hasphd;
+        level.players_deadshot = hasdeadshot;
+        level.players_stam = hasstam;
+        level.players_cherry = hascherry;
+        level.players_mulekick = hasmule;  
         wait 0.05;
     }
 }
@@ -1325,10 +1298,42 @@ WatchPerkMidRound(perk)
 // Function checks if players have more than 0 of specified perk and changes condition to in progress
 {
     current_round = level.round_number;
+    players_inprogress = 0;
     while (current_round == level.round_number)
     {
-        if (perk == "jug")
+        // If function should look for all perks
+        if (perk == "all")
         {
+            temp_players_inprogress = 0;
+            
+            foreach(player in level.players)
+            {
+                if (player.owned_perks > 0)
+                {
+                    temp_players_inprogress++;
+                }
+            }
+
+            // Update only if perk state changes
+            if (players_inprogress != temp_players_inprogress)
+            {
+                players_inprogress = temp_players_inprogress;
+                level.proper_players = players_inprogress;
+
+                if (players_inprogress >= 1)
+                {
+                    ConditionsInProgress(true);
+                }
+                else
+                {
+                    ConditionsInProgress(false);
+                }
+            }
+        }
+
+        else if (perk == "jug")
+        {
+            ConditionsInProgress(false);
             if (level.players_jug > 0)
             {
                 ConditionsInProgress(true);
@@ -1424,7 +1429,7 @@ CheckUsedWeapon(challenge)
     melee_array = array("knife_zm", "one_inch_punch_air_zm", "one_inch_punch_fire_zm", "one_inch_punch_ice_zm", "one_inch_punch_lightning_zm", "one_inch_punch_upgraded_zm", "one_inch_punch_zm", "staff_air_melee_zm", "staff_fire_melee_zm", "staff_lightning_melee_zm", "staff_water_melee_zm");
 
     mp40_array = array("mp40_zm", "mp40_stalker_zm", "mp40_upgraded_zm", "mp40_stalker_upgraded_zm");
-    first_room_array = array("c96_zm", "c96_upgraded_zm", "ballista_zm", "ballista_upgraded_zm", "m14_zm", "m14_upgraded_zm", "galil_zm", "galil_upgraded_zm", "mp44_zm", "mp44_upgraded_zm", "scar_zm", "scar_upgraded_zm")
+    first_room_array = array("c96_zm", "c96_upgraded_zm", "ballista_zm", "ballista_upgraded_zm", "m14_zm", "m14_upgraded_zm", "galil_zm", "galil_upgraded_zm", "mp44_zm", "mp44_upgraded_zm", "scar_zm", "scar_upgraded_zm");
     // m14_array = array("m14_zm", "m14_upgraded_zm");
     // mp44_unpap_array = array("mp44_zm");
 
@@ -2937,6 +2942,123 @@ TankEm(challenge)
         {
             ConditionsMet(true);
         }
+        wait 0.05;
+    }
+}
+
+AmmoController(challenge)
+// Function that threads ammo controllers to each player
+{
+    level endon("end_game");
+    level endon("start_of_round"); 
+    self endon("disconnect");
+
+    self thread GauntletHud(challenge);
+    ConditionsInProgress(true);
+    foreach (player in level.players)
+    {
+        player thread ValueAmmo();
+    }
+
+    level waittill ("end_of_round");
+    wait 0.1;
+    ConditionsMet(true);
+}
+
+ValueAmmo(challenge)
+// Function causes player to lose twice as much ammo for shooting
+{
+    current_round = level.round_number;
+    prev_weapon = "";
+    burst_weapons = array("beretta93r_zm", "beretta93r_extclip_zm", "fnfal_upgraded_zm", "m16_zm", "raygun_mark2_zm", "raygun_mark2_upgraded_zm", "srm1216_zm", "srm1216_upgraded_zm", "staff_air_upgraded_zm", "staff_fire_upgraded_zm", "staff_lightning_upgraded_zm", "staff_water_upgraded_zm");
+
+    while (current_round == level.round_number)
+    {
+        // Get currently used weapon, zero saved vars if weapon is changed
+        weapon = self getCurrentWeapon();
+        if (weapon != prev_weapon)
+        {
+            saved_clip = undefined;
+            saved_stock = undefined;
+        }
+
+        // Grab current ammo count for both stock and clip
+        current_stock = self getAmmoCount(weapon);
+        current_clip = self getWeaponAmmoClip(weapon);
+        if (!isdefined(saved_clip))
+        {
+            saved_clip = current_clip;
+        }
+        if (!isdefined(saved_stock))
+        {
+            saved_stock = current_stock;
+        }
+
+        // Calculate and take away ammo on shoot
+        if (current_clip < saved_clip)
+        {
+            get_diff_clip = (saved_clip - current_clip);
+            get_diff_stock = (saved_stock - current_stock);
+
+            new_clip = (current_clip - get_diff_clip);
+            new_stock = (current_stock - get_diff_stock);
+
+            take_from_reserve = false;
+            while (new_clip < 0)
+            {
+                take_from_reserve = true;
+                new_clip++;
+                new_stock--;
+                wait 0.05;
+            }
+
+            self setweaponammoclip(weapon, new_clip);
+            if (take_from_reserve)
+            {
+                self setweaponammostock(weapon, new_stock);
+            }
+
+            saved_clip = new_clip;
+            saved_stock = new_stock;
+        }
+        // Else keep current ammo count
+        else
+        {
+            saved_clip = self getWeaponAmmoClip(weapon);
+            saved_stock = self getAmmoCount(weapon);
+        }
+
+        // Zero ammo for burst weapons on low ammo
+        if (isinarray(burst_weapons, weapon))
+        {
+            ammo_total = current_clip + current_stock;
+            burst = 3;
+            if (weapon == "srm1216_upgraded_zm")
+            {
+                burst = 4;
+            }
+            else if (weapon == "staff_air_upgraded_zm" || weapon == "staff_fire_upgraded_zm" || weapon == "staff_lightning_upgraded_zm" || weapon == "staff_water_upgraded_zm")
+            {
+                burst = 6;
+            }
+
+            if ((ammo_total < (burst * 2)) && ammo_total != 0)
+            {
+                if (isdefined(level.debug_weapons) && level.debug_weapons)
+                {    
+                    self iPrintLn("reduce burst");
+                }            
+                self setweaponammoclip(weapon, 0);
+                self setweaponammostock(weapon, 0);
+                prev_weapon = weapon;
+                saved_clip = undefined;
+                saved_stock = undefined;
+                wait 0.05;
+                continue;
+            }
+        }
+
+        prev_weapon = weapon;
         wait 0.05;
     }
 }
