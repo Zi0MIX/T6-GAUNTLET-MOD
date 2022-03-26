@@ -29,7 +29,8 @@
 main()
 {
     // Pluto QoL changes
-    replaceFunc(maps/mp/zombies/_zm_powerups::full_ammo_powerup, ::full_ammo_powerup_override);
+    // replaceFunc(maps/mp/zombies/_zm_powerups::full_ammo_powerup, ::full_ammo_powerup_override);
+    replaceFunc(maps/mp/zm_tomb_capture_zones::recapture_round_tracker, ::recapture_round_tracker_override);
 }
 
 init()
@@ -56,7 +57,7 @@ OnPlayerConnect()
 
 	level waittill("initial_players_connected");
     level thread SetDvars();
-    level thread DevDebug("raygun_mark2_upgraded_zm", 16);   // For debugging
+    level thread DevDebug("raygun_mark2_upgraded_zm", 30);   // For debugging
 
     flag_wait("initial_blackscreen_passed");
 
@@ -64,7 +65,7 @@ OnPlayerConnect()
     level thread TimerHud();
     level thread ZombieCounterHud();
     level thread BetaHud(7);
-    level thread SetupPanzerRound(16);  // To remake/removal?
+    level thread GameRules();
     level thread DropWatcher();
     
     // For debugging
@@ -169,7 +170,7 @@ OnPlayerConnect()
         // Survive a round with Panzers
         else if (level.round_number == 16)
         {
-            level thread TooManyPanzers(16);
+            level thread TooManyPanzers(16, false);
         }
 
         // Dig 7 piles (2 for each on coop)
@@ -249,6 +250,11 @@ OnPlayerConnect()
         {
             level thread AmmoController(29);
         }   
+        
+        else if (level.roun_number == 30)
+        {
+            level thread GrandFinale(30);
+        }
 
         level waittill("start_of_round"); // Careful not to add this inside normal fucntions
 
@@ -450,6 +456,59 @@ DevDebug(weapon, round)
 		self notify( "stop_player_out_of_playable_area_monitor" );
 	}
 	level.player_out_of_playable_area_monitor = 0;
+}
+
+GameRules()
+// Function to modify game rules throught the gauntlet
+{
+    while (1)
+    {
+        level waittill ("start_of_round");
+        wait 15;
+
+        if (level.round_number == 8)
+        {
+            level.next_mechz_round = 12;
+        }
+        if (level.round_number == 10)
+        {
+            level.n_next_recapture_round = 14;
+        }
+        if (level.round_number == 12)
+        {
+            level.next_mechz_round = 16;
+        }
+        if (level.round_number == 14)
+        {
+            level.n_next_recapture_round = 18;
+        }
+        if (level.round_number == 16)
+        {
+            level.next_mechz_round = 20;
+        }
+        if (level.round_number == 18)
+        {
+            level.n_next_recapture_round = 23;
+        }
+        if (level.round_number == 20)
+        {
+            level.next_mechz_round = 24;
+        }   
+        if (level.round_number == 23)
+        {
+            level.n_next_recapture_round = 26;
+        }
+        if (level.round_number == 24)
+        {
+            level.next_mechz_round = 28;
+        }  
+        if (level.round_number == 28)
+        {
+            level.next_mechz_round = 30;
+        }    
+
+        level waittill ("end_of_round");                 
+    }
 }
 
 ConditionsMet(bool)
@@ -673,6 +732,10 @@ GauntletHud(challenge, relative_var)
     else if (challenge == 29)
     {
         gauntlet_hud settext("Value your ammo");
+    }
+    else if (challenge == 30)
+    {
+        gauntlet_hud settext("Protect the staff chamber");
     }
 
     while (level.round_number == challenge)
@@ -2039,41 +2102,47 @@ ZombieSuperSprint(challenge, amount_of_supersprinters)
     ConditionsMet(true);
 }
 
-SetupPanzerRound(round)
-{
-    while(1)
-    {
-        level waittill ("start_of_round");
-        if (level.round_number == round - 1)
-        {
-            level waittill ("end_of_round");
-            level.next_mechz_round = round;
-        }
-        wait 0.05;
-    }
-    // level waittill ("end_of_round");
-}
-
-TooManyPanzers(challenge)
+TooManyPanzers(challenge, is_supporting)
 // Function spawns panzers during the whole duration of the round
 {
     level endon("end_game");
     level endon("start_of_round");
 
-    self thread PanzerDeathWatcher();
-    self thread ScanCrazyPlace();
-    self thread GauntletHud(challenge);
+    if (isdefined(level.debug_weapons) && level.debug_weapons)
+    {
+        iPrintLn("panzer_function_entered");
+    }
 
-    // level.next_mechz_round = challenge;  // Debugging
+    if (!isdefined(is_supporting))
+    {
+        is_supporting = false;
+    }
 
-    //level.mechz_spawners = getentarray( "mechz_spawner", "script_noteworthy" );
     level.mech_zombies_alive = 0;
     current_round = level.round_number;
-    level.wanted_mechz = 7;
-    ConditionsInProgress(true);
+    level.wanted_mechz = 1;
+
+    self thread PanzerDeathWatcher(is_supporting);
+    if (!is_supporting)
+    {
+        self thread ScanCrazyPlace();
+        self thread GauntletHud(challenge);
+        level.wanted_mechz = 7;
+        ConditionsInProgress(true);
+    }
     
     while (current_round == level.round_number)
     {
+        if (isdefined(level.debug_weapons) && level.debug_weapons)
+        {
+            print("mech_zombies_alive: " + level.mech_zombies_alive);
+            print("wanted_mechz: " + level.wanted_mechz);
+            if (!isdefined(level.mech_zombies_alive) || !isdefined(level.wanted_mechz))
+            {
+                print("panzers undefined");
+            }
+        }
+
         if (level.mech_zombies_alive < level.wanted_mechz)
         {
             ai = spawn_zombie(level.mechz_spawners[0]);
@@ -2087,13 +2156,22 @@ TooManyPanzers(challenge)
     ConditionsMet(true);
 }
 
-PanzerDeathWatcher()
+PanzerDeathWatcher(is_supporting)
 // Function watches for dying panzers and keeps the counter on proper number
 {
+    if (!isdefined(is_supporting))
+    {
+        is_supporting = false;
+    }
+
     while (1)
     {
         level waittill ("mechz_killed");
         level.wanted_mechz = randomintrange(6, 11);
+        if (is_supporting)
+        {
+            level.wanted_mechz = 1;
+        }
         level.mech_zombies_alive--;
         wait 0.05;
     }
@@ -2879,7 +2957,7 @@ FillStolenGuns()
 {
     level endon ("end_of_round");
 
-    level waittill ("got_a_max");
+    level waittill ("max_taken");
     foreach (player in level.players)
     {
         if (isdefined(player.stolen_ammo_1))
@@ -3124,40 +3202,51 @@ ValueAmmo(challenge)
     }
 }
 
-full_ammo_powerup_override(drop_item, player)
-// Override - notify level if max is obtained
+ClearStaffs()
+// Function zeroes ammo for staffs for the duration of the round
 {
-    level notify ("got_a_max");
-    players = get_players( player.team );
-
-    if ( isdefined( level._get_game_module_players ) )
-        players = [[ level._get_game_module_players ]]( player );
-
-    for ( i = 0; i < players.size; i++ )
+    staff_array = array("staff_air_upgraded_zm", "staff_fire_upgraded_zm", "staff_lightning_upgraded_zm", "staff_water_upgraded_zm");
+    while (1)
     {
-        if ( !players[i] player_is_in_laststand() )
+        foreach (player in level.players)
         {
-            primary_weapons = players[i] getweaponslist( 1 );
-            players[i] notify( "zmb_max_ammo" );
-            players[i] notify( "zmb_lost_knife" );
-            players[i] notify( "zmb_disable_claymore_prompt" );
-            players[i] notify( "zmb_disable_spikemore_prompt" );
-
-            for ( x = 0; x < primary_weapons.size; x++ )
+            current_weapon = player getCurrentWeapon();
+            if (isinarray(staff_array, current_weapon))
             {
-                pulled_weapon = primary_weapons[x];
-
-                // Reversed if statement to avoid continues
-                if ( (!level.headshots_only && !is_lethal_grenade( pulled_weapon )) || ( !isdefined( level.zombie_include_equipment ) && !isdefined( level.zombie_include_equipment[pulled_weapon] )) || ( !isdefined( level.zombie_weapons_no_max_ammo ) && !isdefined( level.zombie_weapons_no_max_ammo[pulled_weapon] )) )
+                if ((player getAmmoCount(current_weapon) != 0) || (player getWeaponAmmoClip(current_weapon) != 0))
                 {
-                    if ( players[i] hasweapon( pulled_weapon ) )
-                    {
-                        players[i] givemaxammo( pulled_weapon );
-                    }
-                }
+                    self setweaponammoclip(weapon, 0);
+                    self setweaponammostock(weapon, 0);  
+                }          
             }
         }
+        wait 0.05;
     }
+}
 
-    level thread full_ammo_on_hud( drop_item, player.team );
+GrandFinale(challenge)
+// Function-hub for final challenge
+{
+    level endon ("end_game");
+
+    self thread GauntletHud(challenge);
+    self thread CheckForZone(challenge, array("ug_bottom_zone"), 60);
+    self thread ClearStaffs();
+    self thread TooManyPanzers(challenge, true);
+
+}
+
+recapture_round_tracker_override()
+// Override, make recapture round a level var to be able to manipulate it
+{
+	level.n_next_recapture_round = 10;
+	while ( 1 )
+	{
+		level waittill_any( "between_round_over", "force_recapture_start" );
+
+		if ( level.round_number >= level.n_next_recapture_round && !flag( "zone_capture_in_progress" ) && get_captured_zone_count() >= get_player_controlled_zone_count_for_recapture() )
+		{
+			level thread recapture_round_start();
+		}
+	}
 }

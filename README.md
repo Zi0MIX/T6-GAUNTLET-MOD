@@ -30,18 +30,8 @@ Patch that emulates gauntlet gamemode from BO4 on BO2 Origins
 26. Kill 48 (+24 for each player) zombies with the tank
 27. Only kill zombies indoors.
 28. Don't pick up any drops.
-29. [only kill zombies in mud]
+29. You use twice as much ammo.
 30. []
 
 # Known issues
-- Drone & downs crashing the game on max ammo drop
 - Workbench in air tunnel is "outside"
-
-# Threads verified (crashing error)
-- TimerHud()
-- ZombieCounterHud()
-- BetaHud()
-- SetupPanzerRound()
-- EndGameWatcher()
-- SetDvars()
-- DevDebug()

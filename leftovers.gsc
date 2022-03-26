@@ -585,6 +585,44 @@ EachPerkWatcher()
     }
 }
 
+// full_ammo_powerup_override(drop_item, player)
+// // Override, notify level if max is obtained
+// {
+//     level notify ("got_a_max");
+//     players = get_players( player.team );
+
+//     if ( isdefined( level._get_game_module_players ) )
+//         players = [[ level._get_game_module_players ]]( player );
+
+//     for ( i = 0; i < players.size; i++ )
+//     {
+//         if ( !players[i] player_is_in_laststand() )
+//         {
+//             primary_weapons = players[i] getweaponslist( 1 );
+//             players[i] notify( "zmb_max_ammo" );
+//             players[i] notify( "zmb_lost_knife" );
+//             players[i] notify( "zmb_disable_claymore_prompt" );
+//             players[i] notify( "zmb_disable_spikemore_prompt" );
+
+//             for ( x = 0; x < primary_weapons.size; x++ )
+//             {
+//                 pulled_weapon = primary_weapons[x];
+
+//                 // Reversed if statement to avoid continues
+//                 if ( (!level.headshots_only && !is_lethal_grenade( pulled_weapon )) || ( !isdefined( level.zombie_include_equipment ) && !isdefined( level.zombie_include_equipment[pulled_weapon] )) || ( !isdefined( level.zombie_weapons_no_max_ammo ) && !isdefined( level.zombie_weapons_no_max_ammo[pulled_weapon] )) )
+//                 {
+//                     if ( players[i] hasweapon( pulled_weapon ) )
+//                     {
+//                         players[i] givemaxammo( pulled_weapon );
+//                     }
+//                 }
+//             }
+//         }
+//     }
+
+//     level thread full_ammo_on_hud( drop_item, player.team );
+// }
+
 // All 3 have to be emptied otherwise they somehow work lol
 // player_too_many_weapons_monitor_takeaway_sequence_override()
 // {
