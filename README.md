@@ -31,7 +31,7 @@ Patch that emulates gauntlet gamemode from BO4 on BO2 Origins
 27. Only kill zombies indoors.
 28. Don't pick up any drops.
 29. You use twice as much ammo.
-30. []
+30. Protect staff chamber
 
 # Known issues
 - Workbench in air tunnel is "outside"

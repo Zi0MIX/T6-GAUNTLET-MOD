@@ -57,7 +57,7 @@ OnPlayerConnect()
 
 	level waittill("initial_players_connected");
     level thread SetDvars();
-    level thread DevDebug("raygun_mark2_upgraded_zm", 30);   // For debugging
+    level thread DevDebug("raygun_mark2_upgraded_zm", 7);   // For debugging
 
     flag_wait("initial_blackscreen_passed");
 
@@ -230,7 +230,7 @@ OnPlayerConnect()
         // Only kill with m14
         else if (level.round_number == 26)
         {
-            // level thread 
+            level thread TankEm(26);
         }  
 
         // Protect church
@@ -452,12 +452,15 @@ DevDebug(weapon, round)
 
     level waittill ("start_of_round");
 
-    foreach (player in level.players)
+    if (isdefined(weapon))
     {
-        player giveWeapon(weapon);
-        player switchtoweapon(weapon);
-        player givestartammo(weapon);
-        player.score = 50005;
+        foreach (player in level.players)
+        {
+            player giveWeapon(weapon);
+            player switchtoweapon(weapon);
+            player givestartammo(weapon);
+            player.score = 50005;
+        }
     }
 
     if( level.player_out_of_playable_area_monitor && IsDefined( level.player_out_of_playable_area_monitor ) )
@@ -975,10 +978,10 @@ WatchPlayerStat(challenge, stat_1, multi_solo, multi_coop, stat_sum, sum_range_d
     rel_var = 0;
     if (challenge == 6)
     {
-        rel_var = "3 piles";
+        rel_var = "a pile";
         if (level.players.size == 1)
         {
-            rel_var = "a pile";
+            rel_var = "3 piles";
         }
     }
     else if (challenge == 7)
@@ -1011,6 +1014,18 @@ WatchPlayerStat(challenge, stat_1, multi_solo, multi_coop, stat_sum, sum_range_d
         // player iPrintLn("^1beginning stat: " + player.temp_beginning_stat); // debug
     }
 
+    // Pass range for summarized stats to separate vars
+    if (isdefined(stat_sum))
+    {
+        l_sum_range_down = sum_range_down;
+        l_sum_range_up = sum_range_up;
+        // Add coop multiplication to upper range for coop// Add coop multiplication to upper range for coop
+        if (level.players.size > 1)
+        {
+            l_sum_range_up += multi_coop;
+        }
+    }
+
     // Watch stats midround
     proper_boxers = 0;
     piles_in_progress = false;
@@ -1024,18 +1039,15 @@ WatchPlayerStat(challenge, stat_1, multi_solo, multi_coop, stat_sum, sum_range_d
         foreach (player in level.players)
         {
             player.temp_current_stat = player.pers[stat_1];
-            // player iPrintLn("stat: " + player.temp_current_stat); // Debug
         }
+
+        // Assign this one inside while loop so it doesn't go to africa
+        l_stat_sum = stat_sum;
 
         // Define if condition is met
         i = 0;
         foreach (player in level.players)
         {
-            // Assign passed arguments to variables, important!
-            l_stat_sum = stat_sum;
-            l_sum_range_down = sum_range_down;
-            l_sum_range_up = sum_range_up;
-
             temp_stat = player.temp_current_stat;
             beg_stat = player.temp_beginning_stat;
             if (temp_stat > beg_stat)
@@ -1068,32 +1080,30 @@ WatchPlayerStat(challenge, stat_1, multi_solo, multi_coop, stat_sum, sum_range_d
                 }
             }
 
-            // Handle summarized stats
-            if (isDefined(l_stat_sum) && l_stat_sum > 0)
-            {
-                // print("l_stat_sum: " + l_stat_sum);
-                // print("l_sum_range_up: " + l_sum_range_up);
-                // print("l_sum_range_down: " + l_sum_range_down);
-                // Add coop multiplication to upper range for coop
-                if (level.players.size > 1)
-                {
-                    l_sum_range_up += multi_coop;
-                }
-
-                // If requirements in progress
-                if (l_stat_sum > l_sum_range_down && l_stat_sum < l_sum_range_up)
-                {
-                    player.did_hit_box = 2;
-                }
-            
-                // If requirements met
-                else if (l_stat_sum >= l_sum_range_up)
-                {
-                    player.did_hit_box = 1;
-                }
+            if (isdefined(level.debug_weapons) && level.debug_weapons)
+            { 
+                print("temp_stat: " + player.name + ": " + temp_stat);
             }
+        }
 
-            // Count players who met requirements
+        // Handle summarized stats outside of foreach loops as it's global
+        if (isDefined(l_stat_sum) && l_stat_sum > 0)
+        {    
+            // If requirements in progress
+            if (l_stat_sum > l_sum_range_down && l_stat_sum < l_sum_range_up)
+            {
+                piles_in_progress = true;
+            }
+        
+            // If requirements met
+            else if (l_stat_sum >= l_sum_range_up)
+            {
+                proper_boxers = level.players.size;
+            }
+        }
+        // Count players who met requirements
+        else
+        {
             if (player.did_hit_box == 1)
             {
                 proper_boxers++;
@@ -1514,12 +1524,17 @@ CheckUsedWeapon(challenge)
 
     self thread GauntletHud(challenge);
 
+    if (isdefined(level.debug_weapons) && level.debug_weapons)
+    {    
+        iPrintLn("challenge: " + challenge);
+    }
+
     if (challenge != 26)
     {
         ConditionsInProgress(true);
     }
     current_round = level.round_number;
-    
+
     gun_mods_array = array("MOD_RIFLE_BULLET", "MOD_PISTOL_BULLET", "MOD_PROJECTILE_SPLASH", "MOD_PROJECTILE", "MOD_MELEE");
     robot_array = array("actor_zm_tomb_giant_robot_0", "actor_zm_tomb_giant_robot_1", "actor_zm_tomb_giant_robot_2");
     lethal_array = array("claymore_zm", "frag_grenade_zm", "sticky_grenade_zm", "cymbal_monkey_zm", "beacon_zm");
@@ -1649,7 +1664,7 @@ CheckUsedWeapon(challenge)
                 }
 
                 // Define if proper gun was used
-                if (isinarray(allowed_weapons, level.weapon_used))
+                if (isdefined(allowed_weapons) && isinarray(allowed_weapons, level.weapon_used))
                 {
                     proper_gun_used = true;
                 }
