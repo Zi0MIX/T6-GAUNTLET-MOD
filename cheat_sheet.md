@@ -30,6 +30,9 @@
 29. You use twice as much ammo.
 30. Protect staff chamber
 
+# Second chance:
+One second chance for a game. On solo it'll down you (game is over if you don't have a qr). On coop it downs everyone but one (randomly selected) player. Second chance cannot be used on last round.
+
 # Challenges that can be failed:
 Challenges that you can fail by doing or not doing something particular. Other challenges you just gotta survive with customized rules of the game.
 1, 2, 4, 5, 6, 7, 8, 9, 11, 12, 15, 17, 19, 20, 23, 26, 27, 28, 30

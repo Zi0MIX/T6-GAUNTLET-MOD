@@ -60,7 +60,7 @@ OnPlayerConnect()
 
 	level waittill("initial_players_connected");
     level thread SetDvars();
-    level thread DevDebug("raygun_mark2_upgraded_zm", 13);   // For debugging
+    level thread DevDebug("raygun_mark2_upgraded_zm", 30);   // For debugging
 
     flag_wait("initial_blackscreen_passed");
 
@@ -292,6 +292,7 @@ SetDvars()
     self thread LevelDvarsWatcher();
     level.player_too_many_weapons_monitor = 0;
     level.rnd_size = 0;
+    level.second_chance = true;
     level.callbackactorkilled = ::actor_killed_override; // Pointer
     // level.player_too_many_weapons_monitor_func = ::player_too_many_weapons_monitor_override;
 
@@ -393,15 +394,51 @@ ForbiddenWeaponWatcher()
         if (level.forbidden_weapon_used)
         {
             EndGame();
-            break;
+            level.forbidden_weapon_used = false;
         }
         wait 0.05;
     }
 }
 
 EndGame()
-// Function ends the game immidiately
+// Function either ends the game or triggers second chance event
 {
+    if (isdefined(level.second_chance) && level.second_chance)
+    {
+        level.second_chance = false;
+        team_size = level.players.size;
+        self thread SecondChanceHud(team_size);
+        // Down a player
+        if (team_size == 1)
+        {
+            player = level.players[0];
+            if (!player player_is_in_laststand())
+            {
+                player dodamage(player.maxhealth, player.origin);
+            }
+            return;
+        }
+        while (1)
+        {
+            lucky_one = randomInt(team_size - 1);
+            if (level.players[lucky_one] player_is_in_laststand())
+            {
+                wait 0.05;
+                continue;
+            }
+            break;
+        }
+        i = 0;
+        foreach (player in level.players)
+        {
+            if (i != lucky_one && !player player_is_in_laststand())
+            {
+                player dodamage(player.maxhealth, player.origin);
+            }
+            i++;
+        }
+        return;
+    }
     if (isdefined(level.debug_weapons) && level.debug_weapons)
     {
         iprintln("you bad");
@@ -411,6 +448,7 @@ EndGame()
     wait 0.1;
     maps\mp\zombies\_zm_game_module::freeze_players(1);
     level notify("end_game");
+    return;
 }
 
 WinGame()
@@ -596,8 +634,8 @@ ZombieCounterHudNew()
 
         if (isdefined(level.rnd_size))
         {      
-            // If round size is over 24 zombies and remaining is smaller than 10%
-            if (level.rnd_size > 24 && (current_zombz < (level.rnd_size / 10)))
+            // If round size is over 36 zombies and remaining is smaller than 10%
+            if (level.rnd_size > 36 && (current_zombz < (level.rnd_size / 10)))
             {
                 counter_hud.label = &"ZOMBIES: ^3";
             }
@@ -812,19 +850,19 @@ CustomEndScreen()
 {
     self endon ("disconnect");
 
-    win_hud = newHudElem();
-    win_hud.alignx = "center";
-    win_hud.aligny = "middle";
-    win_hud.horzalign = "center";
-    win_hud.vertalign = "middle";
-    win_hud.x = 0;
-    win_hud.y = -130;
-    win_hud.fontscale = 2.4;
-    win_hud.hidewheninmenu = 1;
-    win_hud.color = ( 1, 1, 1 );
-    win_hud settext("YOU WIN\t" + to_mins(level.completition_time));
+    win_hud = createserverfontstring("hudsmall" , 2.4);
+    win_hud setPoint("CENTER", "CENTER", "CENTER", -50);
+	win_hud.alpha = 0;
+    win_hud setText("YOU WIN"); 
     win_hud fadeovertime(1);    
-    win_hud.alpha = 1;
+    win_hud.alpha = 1;  
+
+    win_hud2 = createserverfontstring("hudsmall" , 2.2);
+    win_hud2 setPoint("CENTER", "CENTER", "CENTER", -25);
+	win_hud2.alpha = 0;
+    win_hud2 setText(to_mins(level.completition_time)); 
+    win_hud2 fadeovertime(1);    
+    win_hud2.alpha = 1;  
 }
 
 NetworkFrameHud()
@@ -837,7 +875,7 @@ NetworkFrameHud()
 	network_hud.vertalign = "user_top";
 	network_hud.x += 0;
 	network_hud.y += 2;
-	network_hud.fontscale = 1.4;
+	network_hud.fontscale = 1.2;
 	network_hud.alpha = 0;
 	network_hud.color = ( 1, 1, 1 );
 	network_hud.hidewheninmenu = 1;
@@ -865,6 +903,28 @@ NetworkFrameHud()
         iPrintLn("^0TICKRATE ERROR");
         EndGame();
     }
+}
+
+SecondChanceHud(team_size)
+{
+    self endon("disconnect");
+    level endon("end_game");
+
+    chance_hud = createserverfontstring("hudsmall" , 2.2);
+    chance_hud setPoint("CENTER", "CENTER", "CENTER", -10);
+	chance_hud.alpha = 0;
+    chance_hud.color = (1, 0.8, 0.6);
+    chance_hud setText("SECOND CHANCE"); 
+    if (team_size == 1)
+    {
+        chance_hud setText("CHALLENGE FAILED"); 
+    }
+
+    chance_hud fadeovertime(1);    
+	chance_hud.alpha = 1;
+    wait 7;
+    chance_hud fadeovertime(1);    
+	chance_hud.alpha = 0;
 }
 
 BetaHud(beta_version)
@@ -3360,6 +3420,8 @@ GrandFinale(challenge)
 // Function-hub for final challenge
 {
     level endon ("end_game");
+
+    level.second_chance = false;
 
     self thread GauntletHud(challenge);
     self thread CheckForZone(challenge, array("ug_bottom_zone"), 60);
