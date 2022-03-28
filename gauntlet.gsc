@@ -30,8 +30,11 @@ main()
 {
     // Pluto QoL changes
     // replaceFunc(maps/mp/zombies/_zm_powerups::full_ammo_powerup, ::full_ammo_powerup_override);
+	replaceFunc(maps/mp/animscripts/zm_utility::wait_network_frame, ::wait_network_frame_override);
+	replaceFunc(maps/mp/zombies/_zm_utility::wait_network_frame, ::wait_network_frame_override);    
     replaceFunc(maps/mp/zm_tomb_capture_zones::recapture_round_tracker, ::recapture_round_tracker_override);
     replaceFunc(maps/mp/zombies/_zm_powerups::powerup_drop, ::powerup_drop_override);
+
 }
 
 init()
@@ -62,10 +65,12 @@ OnPlayerConnect()
 
     flag_wait("initial_blackscreen_passed");
 
-    level thread EndGameWatcher();
     level thread TimerHud();
     level thread ZombieCounterHud();
+    level thread NetworkFrameHud();
     level thread BetaHud(7);
+
+    level thread EndGameWatcher();
     level thread GameRules();
     level thread DropWatcher();
     
@@ -803,6 +808,46 @@ CustomEndScreen()
     win_hud settext("YOU WIN\t" + to_mins(level.completition_time));
     win_hud fadeovertime(1);    
     win_hud.alpha = 1;
+}
+
+NetworkFrameHud()
+// Print network frame - forked from FR fix
+{
+	network_hud = newHudElem();
+	network_hud.alignx = "center";
+	network_hud.aligny = "top";
+	network_hud.horzalign = "user_center";
+	network_hud.vertalign = "user_top";
+	network_hud.x += 0;
+	network_hud.y += 2;
+	network_hud.fontscale = 1.4;
+	network_hud.alpha = 0;
+	network_hud.color = ( 1, 1, 1 );
+	network_hud.hidewheninmenu = 1;
+	network_hud.label = &"Network frame check: ^1";
+
+	flag_wait( "initial_blackscreen_passed" );
+
+	start_time = int(getTime());
+	wait_network_frame();
+	end_time = int(getTime());
+	network_frame_len = float((end_time - start_time) / 1000);
+
+	if (network_frame_len == 0.1)
+	{
+		network_hud.label = &"Network frame check: ^2";
+	}
+	
+	network_hud.alpha = 1;
+	network_hud setValue(network_frame_len);
+
+	wait 3;
+	network_hud.alpha = 0;
+    if (network_frame_len != 0.1)
+    {
+        iPrintLn("^0TICKRATE ERROR");
+        EndGame();
+    }
 }
 
 BetaHud(beta_version)
@@ -3414,4 +3459,10 @@ powerup_drop_override(drop_point)
     powerup thread powerup_emp();
     level.zombie_vars["zombie_drop_item"] = 0;
     level notify( "powerup_dropped", powerup );
+}
+
+wait_network_frame_override()
+// Override, fixed tickrate
+{
+	wait 0.1; 							
 }
