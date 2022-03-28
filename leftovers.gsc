@@ -585,6 +585,31 @@ EachPerkWatcher()
     }
 }
 
+ZombieCounterHud()
+// Timer hud displayer throught the game
+{
+    self endon("disconnect");
+    level endon("end_game");
+
+    counter_hud = newHudElem();
+	counter_hud.alignx = "left";					
+	counter_hud.aligny = "top";
+	counter_hud.horzalign = "user_left";			
+	counter_hud.vertalign = "user_top";
+	counter_hud.x = 7; 							
+	counter_hud.y = 70;							
+	counter_hud.fontscale = 1.4;
+	counter_hud.alpha = 1;
+	counter_hud.color = ( 1, 1, 1 );
+	counter_hud.hidewheninmenu = 1;
+
+    while (1)
+    {
+        counter_hud setText("Remaining: " + (maps/mp/zombies/_zm_utility::get_round_enemy_array().size + level.zombie_total)); 
+        wait 0.05;
+    }
+}
+
 // full_ammo_powerup_override(drop_item, player)
 // // Override, notify level if max is obtained
 // {

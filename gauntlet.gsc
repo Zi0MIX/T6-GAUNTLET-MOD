@@ -43,14 +43,12 @@ init()
     flag_init("env_kill");
     flag_init("out_of_zone");
     flag_init("just_set_weapon");
-    flag_init("weapons_cleared");
     flag_init("nuke_taken");
     flag_init("insta_taken");
     flag_init("max_taken");
     flag_init("double_taken");
     flag_init("blood_taken");
     flag_init("sale_taken");
-    flag_init("points_taken");
 }
 
 OnPlayerConnect()
@@ -61,14 +59,15 @@ OnPlayerConnect()
 
 	level waittill("initial_players_connected");
     level thread SetDvars();
-    level thread DevDebug("raygun_mark2_upgraded_zm", 28);   // For debugging
+    // level thread DevDebug("raygun_mark2_upgraded_zm", 28);   // For debugging
 
     flag_wait("initial_blackscreen_passed");
 
     level thread TimerHud();
-    level thread ZombieCounterHud();
+    // level thread ZombieCounterHud();
+    level thread ZombieCounterHudNew();
     level thread NetworkFrameHud();
-    level thread BetaHud(7);
+    level thread BetaHud(8);
 
     level thread EndGameWatcher();
     level thread GameRules();
@@ -291,6 +290,7 @@ SetDvars()
     level.conditions_in_progress = false;
     self thread LevelDvarsWatcher();
     level.player_too_many_weapons_monitor = 0;
+    level.rnd_size = 0;
     level.callbackactorkilled = ::actor_killed_override; // Pointer
     // level.player_too_many_weapons_monitor_func = ::player_too_many_weapons_monitor_override;
 
@@ -328,7 +328,6 @@ SetDvars()
         flag_clear("double_taken");
         flag_clear("blood_taken");
         flag_clear("sale_taken");
-        flag_clear("points_taken");
 
         level waittill("end_of_round");
         wait 3; // Must be higher than 1 ::EndGameWatcher
@@ -556,48 +555,65 @@ TimerHud()
     level endon("end_game");
 
     timer_hud = newHudElem();
-	timer_hud.alignx = "left";					
+	timer_hud.alignx = "right";					
 	timer_hud.aligny = "top";
-	timer_hud.horzalign = "user_left";			
+	timer_hud.horzalign = "user_right";			
 	timer_hud.vertalign = "user_top";
-	timer_hud.x = 7; 							
-	timer_hud.y = 50;							
-	timer_hud.fontscale = 1.4;
+	timer_hud.x = -3; 							
+	timer_hud.y = 15;							
+	timer_hud.fontscale = 1.5;
 	timer_hud.alpha = 1;
-	timer_hud.color = ( 1, 1, 1 );
+	timer_hud.color = (0.6, 0.8, 1);
 	timer_hud.hidewheninmenu = 1;
 
 	timer_hud setTimerUp(0); 
 }
 
-ZombieCounterHud()
-// Timer hud displayer throught the game
+ZombieCounterHudNew()
+// Zombie counter - forked from Remix
 {
     self endon("disconnect");
     level endon("end_game");
 
-    counter_hud = newHudElem();
-	counter_hud.alignx = "left";					
-	counter_hud.aligny = "top";
-	counter_hud.horzalign = "user_left";			
-	counter_hud.vertalign = "user_top";
-	counter_hud.x = 7; 							
-	counter_hud.y = 70;							
-	counter_hud.fontscale = 1.4;
+    self thread PullRoundZombies();
+
+    counter_hud = createserverfontstring("hudsmall" , 1.4);
+    counter_hud setPoint("CENTER", "CENTER", "CENTER", 160);
 	counter_hud.alpha = 1;
-	counter_hud.color = ( 1, 1, 1 );
-	counter_hud.hidewheninmenu = 1;
+    counter_hud.label = &"ZOMBIES: ^5";
+    counter_hud setValue(0); 
+
+	level waittill("start_of_round");
 
     while (1)
     {
-        counter_hud setText("Remaining: " + (maps/mp/zombies/_zm_utility::get_round_enemy_array().size + level.zombie_total)); 
+        if (isdefined(level.zombie_total))
+        {
+            current_zombz = get_round_enemy_array().size + level.zombie_total;
+            // print("current_zombz: " + current_zombz);
+        }
+
+        if (isdefined(level.rnd_size))
+        {      
+            // If round size is over 24 zombies and remaining is smaller than 10%
+            if (level.rnd_size > 24 && (current_zombz < (level.rnd_size / 10)))
+            {
+                counter_hud.label = &"ZOMBIES: ^3";
+            }
+            else
+            {
+                counter_hud.label = &"ZOMBIES: ^5";
+            }
+            // print("rnd_size: " + level.rnd_size);
+        }
+
+        counter_hud setValue(current_zombz); 
         wait 0.05;
     }
-	
 }
 
 GauntletHud(challenge, relative_var)
-// Hud for printing challenge goals, function doesn't yet work properly
+// Hud for printing challenge goals
 {
     self endon("disconnect");
     level endon("end_game");
@@ -854,23 +870,24 @@ BetaHud(beta_version)
 // Function for beta overlay
 {
     self endon("disconnect");
+    level endon("end_game");
 
-    if (!isdefined(beta_version))
+    counter_hud = createserverfontstring("hudsmall" , 1);
+    counter_hud setPoint("TOP", "TOP", "CENTER", 10);
+	counter_hud.alpha = 0.3;
+    counter_hud.label = &"^4BETA V";
+    counter_hud setValue(beta_version); 
+}
+
+PullRoundZombies()
+// Function dumps fixed max amount of zombies each round to separate var
+{
+    while (1)
     {
-        beta_version = 0;
+        level waittill ("start_of_round");
+        level.rnd_size = level.zombie_total + get_round_enemy_array().size;
+        wait 0.05;
     }
-    beta_hud = newHudElem();
-    beta_hud.alignx = "middle";
-    beta_hud.aligny = "top";
-    beta_hud.horzalign = "user_center";
-    beta_hud.vertalign = "user_top";
-    beta_hud.x = 0;
-    beta_hud.y = 5;
-    beta_hud.fontscale = 1.2;
-    beta_hud.alpha = 0.3;
-    beta_hud.hidewheninmenu = 1;
-    beta_hud.color = (0, 0.4, 0.8);
-    beta_hud settext("Beta V" + beta_version);
 }
 
 CheckForGenerator(challenge, gen_id, rnd_override)
@@ -1243,7 +1260,6 @@ EnvironmentKills()
         if (stat_difference != kill_difference)
         {
             // global_kills += kill_difference; // Maxis drone is crashing the game
-            iPrintLn("env_kill");
             level notify ("env_kill");
             flag_set("env_kill");
             kill_difference = stat_difference;
@@ -1981,14 +1997,17 @@ actor_killed_override( einflictor, attacker, idamage, smeansofdeath, sweapon, vd
     level.killer_class = attacker.classname;
     level.killer_name = attacker.clientid;
     level notify ("zombie_killed");
-    // print("einflictor: " + einflictor);
-    // print("attacker: " + attacker.classname);    
-    // print("idamage: " + idamage);
-    // print("smeansofdeath: " + smeansofdeath);
-    // print("sweapon: " + sweapon);
-    // print("vdir: " + vdir);
-    // print("shitloc: " + shitloc);
-    // print("psoffsettime: " + psoffsettime);
+    if (isdefined(level.debug_weapons) && level.debug_weapons)
+    {    
+        // print("einflictor: " + einflictor);
+        // print("attacker: " + attacker.classname);    
+        // print("idamage: " + idamage);
+        // print("smeansofdeath: " + smeansofdeath);
+        // print("sweapon: " + sweapon);
+        // print("vdir: " + vdir);
+        // print("shitloc: " + shitloc);
+        // print("psoffsettime: " + psoffsettime);
+    }
 
     if ( game["state"] == "postgame" )
         return;
@@ -2063,28 +2082,24 @@ WatchUpgradedStaffs(challenge, number_of_staffs)
         {
             if (staff.charger.is_charged == 1 && staff.weapname == "staff_air_upgraded_zm" && !upgraded_wind)
             {
-                // print("wind_upgrade"); // For testing
                 upgraded_wind = true;
                 upgraded_staffs++;
             }
 
             else if (staff.charger.is_charged == 1 && staff.weapname == "staff_fire_upgraded_zm" && !upgraded_fire)
             {
-                // print("fire_upgrade"); // For testing
                 upgraded_fire = true;
                 upgraded_staffs++;
             }
 
             else if (staff.charger.is_charged == 1 && staff.weapname == "staff_lightning_upgraded_zm" && !upgraded_lighting)
             {
-                // print("lighting_upgrade"); // For testing
                 upgraded_lighting = true;
                 upgraded_staffs++;
             }
 
             else if (staff.charger.is_charged == 1 && staff.weapname == "staff_water_upgraded_zm" && !upgraded_ice)
             {
-                // print("ice_upgrade"); // For testing
                 upgraded_ice = true;
                 upgraded_staffs++;
             }
@@ -2221,11 +2236,6 @@ TooManyPanzers(challenge, is_supporting)
     level endon("end_game");
     level endon("start_of_round");
 
-    if (isdefined(level.debug_weapons) && level.debug_weapons)
-    {
-        iPrintLn("panzer_function_entered");
-    }
-
     if (!isdefined(is_supporting))
     {
         is_supporting = false;
@@ -2315,7 +2325,7 @@ SetDvarForRound(challenge, dvar, start_value, end_value)
 }
 
 CheckForZone(challenge, zonearray, time)
-// dsc
+// Function handles players getting to the zone in time and staying there
 {
     level endon("end_game");
     level endon("start_of_round");
@@ -2436,7 +2446,7 @@ CheckForZone(challenge, zonearray, time)
 }
 
 PlayerInZone()
-// dsc
+// Function prints warninng about player being out of zone
 {
     while (1)
     {
@@ -3361,7 +3371,7 @@ recapture_round_tracker_override()
 }
 
 powerup_drop_override(drop_point)
-//dsc
+// Override, power vacuum for round 28
 {
     if (isdefined(level.debug_weapons) && level.debug_weapons)
     {
