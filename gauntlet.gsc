@@ -1022,8 +1022,9 @@ WatchPlayerStat(challenge, stat_1, multi_solo, multi_coop, stat_sum, sum_range_d
     if (isdefined(stat_sum))
     {
         l_sum_range_down = sum_range_down;
-        l_sum_range_up = (sum_range_up + beginning_stat_sum);
+        l_sum_range_up = sum_range_up;
         l_stat_sum = stat_sum;
+        l_beg_sum = beginning_stat_sum;
         // Add coop multiplication to upper range for coop
         if (level.players.size > 1)
         {
@@ -1039,7 +1040,10 @@ WatchPlayerStat(challenge, stat_1, multi_solo, multi_coop, stat_sum, sum_range_d
     {
         proper_boxers = 0;
         temp_melees = 0;
-        l_stat_sum = 0;
+        if (isdefined(stat_sum))
+        {
+            l_stat_sum = 0;
+        }
 
         // Pull stat from each player to player var during the round
         foreach (player in level.players)
@@ -1095,22 +1099,28 @@ WatchPlayerStat(challenge, stat_1, multi_solo, multi_coop, stat_sum, sum_range_d
         if (isdefined(level.debug_weapons) && level.debug_weapons)
         { 
             iPrintLn("l_stat_sum: " + l_stat_sum);
+            iPrintLn("l_beg_sum: " + l_beg_sum);
             iPrintLn("l_sum_range_up: " + l_sum_range_up);
         }
 
         // Handle summarized stats outside of foreach loops as it's global
-        if (isDefined(l_stat_sum) && l_stat_sum > 0)
+        if (isDefined(l_stat_sum))
         {    
-            // If requirements in progress
-            if (l_stat_sum > l_sum_range_down && l_stat_sum < l_sum_range_up)
+            l_stat_res = (l_stat_sum - l_beg_sum);
+
+            if (l_stat_sum > 0)
             {
-                piles_in_progress = true;
-            }
-        
-            // If requirements met
-            else if (l_stat_sum >= l_sum_range_up)
-            {
-                proper_boxers = level.players.size;
+                // If requirements in progress
+                if (l_stat_sum > l_sum_range_down && l_stat_sum < l_sum_range_up)
+                {
+                    piles_in_progress = true;
+                }
+            
+                // If requirements met
+                else if (l_stat_res >= l_sum_range_up)
+                {
+                    proper_boxers = level.players.size;
+                }
             }
         }
 
