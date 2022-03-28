@@ -59,7 +59,7 @@ OnPlayerConnect()
 
 	level waittill("initial_players_connected");
     level thread SetDvars();
-    // level thread DevDebug("raygun_mark2_upgraded_zm", 28);   // For debugging
+    level thread DevDebug("raygun_mark2_upgraded_zm");   // For debugging
 
     flag_wait("initial_blackscreen_passed");
 
@@ -3415,6 +3415,11 @@ powerup_drop_override(drop_point)
         {
             return;
         }
+		debug = "score";
+    }
+    else
+    {
+		debug = "random";
     }
 
     playable_area = getentarray( "player_volume", "script_noteworthy" );
@@ -3422,15 +3427,12 @@ powerup_drop_override(drop_point)
     powerup = maps\mp\zombies\_zm_net::network_safe_spawn( "powerup", 1, "script_model", drop_point + vectorscale( ( 0, 0, 1 ), 40.0 ) );
     valid_drop = 0;
 
-    if (isdefined(level.debug_weapons) && level.debug_weapons)
-    {
-        iPrintLn("playable_area: " + playable_area);
-    }
     for ( i = 0; i < playable_area.size; i++ )
     {
         if ( powerup istouching( playable_area[i] ) )
         {
             valid_drop = 1;
+            break;
         }
     }
 
@@ -3447,10 +3449,6 @@ powerup_drop_override(drop_point)
 
     if ( !valid_drop )
     {
-        if (isdefined(level.debug_weapons) && level.debug_weapons)
-        {
-            iPrintLn("^3valid drop triggered");
-        }
         level.powerup_drop_count--;
         powerup delete();
         return;
@@ -3461,14 +3459,14 @@ powerup_drop_override(drop_point)
         iPrintLn("^5SHOULD DROP");
     }
     powerup powerup_setup();
-    print_powerup_drop( powerup.powerup_name, debug );
+    // print_powerup_drop( powerup.powerup_name, debug );
     powerup thread powerup_timeout();
     powerup thread powerup_wobble();
     powerup thread powerup_grab();
     powerup thread powerup_move();
     powerup thread powerup_emp();
     level.zombie_vars["zombie_drop_item"] = 0;
-    level notify( "powerup_dropped", powerup );
+    level notify( "powerup_dropped" );
 }
 
 wait_network_frame_override()
