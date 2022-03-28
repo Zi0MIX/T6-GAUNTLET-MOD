@@ -478,6 +478,15 @@ GameRules()
         level waittill ("start_of_round");
         wait 15;
 
+        // Predefine weather between round 6-12
+        level.force_weather[6] = "snow";
+        level.force_weather[7] = "snow";
+        level.force_weather[8] = "clear";
+        level.force_weather[9] = "rain";
+        // level.force_weather[10] = "snow"; // Already predefined init_weather_manager()
+        level.force_weather[11] = "clear";
+        level.force_weather[12] = "clear";
+
         if (level.round_number == 8)
         {
             level.next_mechz_round = 12;
