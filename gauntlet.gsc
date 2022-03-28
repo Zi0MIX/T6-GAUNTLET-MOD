@@ -15,6 +15,7 @@
 #include maps/mp/gametypes_zm/_tweakables;
 #include maps/mp/gametypes_zm/_shellshock;
 #include maps/mp/gametypes_zm/_weapons;
+#include maps/mp/gametypes_zm/_globallogic_score;
 #include maps/mp/zombies/_zm_game_module;
 #include maps/mp/zombies/_zm_net;
 #include maps/mp/zombies/_zm_ai_mechz;
@@ -59,7 +60,7 @@ OnPlayerConnect()
 
 	level waittill("initial_players_connected");
     level thread SetDvars();
-    level thread DevDebug("raygun_mark2_upgraded_zm");   // For debugging
+    level thread DevDebug("raygun_mark2_upgraded_zm", 13);   // For debugging
 
     flag_wait("initial_blackscreen_passed");
 
@@ -136,7 +137,7 @@ OnPlayerConnect()
             level thread CheckUsedWeapon(9);
         }   
 
-        // Crouch only
+        // Jumping only
         else if (level.round_number == 10)
         {
             level thread DisableMovement(10);
@@ -154,16 +155,16 @@ OnPlayerConnect()
             level thread WatchUpgradedStaffs(12, 1);
         }
 
-        // Survive a round with super-sprinters
+        // Take points if not moving
         else if (level.round_number == 13)
         {
-            level thread ZombieSuperSprint(13);
+            level thread SprintWatcher(13, "points");
         }
 
-        // No jumping
+        // Survive a round with super-sprinters
         else if (level.round_number == 14)
         {
-            level thread DisableMovement(14);
+            level thread ZombieSuperSprint(14);
         }
 
         // Activate all generators
@@ -214,16 +215,16 @@ OnPlayerConnect()
             level thread ShutDownPerk(22, "all");
         }
 
-        // Only kill with unpacked stg
+        // Deal damage if not moving
         else if (level.round_number == 23)
         {
-            level thread CheckUsedWeapon(23);
+            level thread SprintWatcher(23, "health");
         }   
 
-        // Take damage if not moving
+        // Only use first room weapons
         else if (level.round_number == 24)
         {
-            level thread SprintWatcher(24);
+            level thread CheckUsedWeapon(24);
         }
 
         // GunGame
@@ -578,7 +579,7 @@ ZombieCounterHudNew()
     self thread PullRoundZombies();
 
     counter_hud = createserverfontstring("hudsmall" , 1.4);
-    counter_hud setPoint("CENTER", "CENTER", "CENTER", 160);
+    counter_hud setPoint("CENTER", "CENTER", "CENTER", 190);
 	counter_hud.alpha = 1;
     counter_hud.label = &"ZOMBIES: ^5";
     counter_hud setValue(0); 
@@ -677,7 +678,7 @@ GauntletHud(challenge, relative_var)
     }
     else if (challenge == 10)
     {
-        gauntlet_hud settext("Crouch only");
+        gauntlet_hud settext("No jumping");
     }
     else if (challenge == 11)
     {
@@ -689,11 +690,11 @@ GauntletHud(challenge, relative_var)
     }
     else if (challenge == 13)
     {
-        gauntlet_hud settext("Survive round with super-sprinters");
+        gauntlet_hud settext("Move or lose points");
     }
     else if (challenge == 14)
     {
-        gauntlet_hud settext("No jumping");
+        gauntlet_hud settext("Survive round with super-sprinters");
     }
     else if (challenge == 15)
     {
@@ -729,11 +730,11 @@ GauntletHud(challenge, relative_var)
     }
     else if (challenge == 23)
     {
-        gauntlet_hud settext("Only kill with First Room guns");
+        gauntlet_hud settext("Move or get hurt");
     }
     else if (challenge == 24)
     {
-        gauntlet_hud settext("Move or get hurt");
+        gauntlet_hud settext("Only kill with First Room guns");
     }
     else if (challenge == 25)
     {
@@ -1070,7 +1071,7 @@ WatchPlayerStat(challenge, stat_1, multi_solo, multi_coop, stat_sum, sum_range_d
     }
     else if (challenge == 28)
     {
-        level.zombie_vars["zombie_powerup_drop_max_per_round"] = 4096;
+        level.zombie_vars["zombie_powerup_drop_max_per_round"] = 1024;
     }
 
     self thread GauntletHud(challenge, rel_var);
@@ -1296,12 +1297,6 @@ DisableMovement(challenge)
             }
             else if (challenge == 10)
             {
-                player allowstand(0);
-                player allowprone(0);
-                player allowsprint(0);
-            }
-            else if (challenge == 14)
-            {
                 player allowjump(0);
             }
         }
@@ -1318,12 +1313,6 @@ DisableMovement(challenge)
     {
         player setmovespeedscale(1);
         player allowjump(1);
-        if (!player player_is_in_laststand())
-        {  
-            player allowstand(1);
-            player allowprone(1);
-            player allowsprint(1);
-        }
     }
 }
 
@@ -1717,7 +1706,7 @@ CheckUsedWeapon(challenge)
         }
 
         // COMPARE MEANS OF DEATH AGAINST CHALLENGES
-        if (challenge == 2 || challenge == 9 || challenge == 19 || challenge == 23)
+        if (challenge == 2 || challenge == 9 || challenge == 19 || challenge == 24)
         {
             // CASE = MELEE
             if (challenge == 2)
@@ -1742,7 +1731,7 @@ CheckUsedWeapon(challenge)
                 {
                     allowed_weapons = array_copy(mp40_array);
                 }
-                else if (challenge == 23)
+                else if (challenge == 24)
                 {
                     allowed_weapons = array_copy(first_room_array);
                 }
@@ -2730,7 +2719,7 @@ ShutDownPerk(challenge, perk, fizz_off)
     ConditionsMet(true);
 }
 
-SprintWatcher(challenge)
+SprintWatcher(challenge, mode)
 // Function deals damage to players if they don't move
 {
     level endon("end_game");
@@ -2739,7 +2728,7 @@ SprintWatcher(challenge)
     
     self thread GauntletHud(challenge);
     ConditionsInProgress(true);
-    
+        
     current_round = level.round_number;
 
     // Define player vars
@@ -2765,13 +2754,37 @@ SprintWatcher(challenge)
             // Do damage if players don't move, kill if they don't move for too long
             if (player.isnt_moving > 20 && !player player_is_in_laststand())
             {
-                player dodamage(player.maxhealth, player.origin);
                 player.isnt_moving = 0;
+                if (mode == "health")
+                {
+                    player dodamage(player.maxhealth, player.origin);
+                }
+                else if (mode == "points")
+                {
+                    take_away = int(player.score / 100);
+                    player.score = roundtonearestfive(take_away);
+                    if (isdefined(level.debug_weapons) && level.debug_weapons)
+                    {
+                        print("^1Take: " + take_away);
+                    }
+                }
             }
             else if (player.isnt_moving > 4 && !player player_is_in_laststand())
             {
                 player iPrintLn("^1Move!!!");
-                player dodamage(player.maxhealth / 25, player.origin);
+                if (mode == "health")
+                {
+                    player dodamage(player.maxhealth / 25, player.origin);
+                }
+                else if (mode == "points")
+                {
+                    take_away = int(player.score / 50);
+                    player.score -= roundtonearestfive(take_away);
+                    if (isdefined(level.debug_weapons) && level.debug_weapons)
+                    {
+                        print("^1Take: " + take_away);
+                    }
+                }
             }
             // iPrintLn(player.health);    // For debugging
 

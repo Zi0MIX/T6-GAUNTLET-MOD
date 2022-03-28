@@ -11,11 +11,11 @@ Patch that emulates gauntlet gamemode from BO4 on BO2 Origins
 7. Solo - Kill 6 zombies with melee attacks / Coop - Kill 12 zombies total with melee attacks.
 8. Own Jugger-Nog by the end of the round.
 9. Only kill with MP-40.
-10. Crouch only.
+10. No jumping.
 11. Don't buy anything.
 12. Upgrade a staff.
-13. Survive round with super-sprinters.
-14. No jumping.
+13. Move or lose points.
+14. Survive round with super-sprinters.
 15. Activate all generators.
 16. Survive round with panzers.
 17. Solo - Dig up 7 piles / Coop - Dig up 2 piles.
@@ -24,8 +24,8 @@ Patch that emulates gauntlet gamemode from BO4 on BO2 Origins
 20. Protect church.
 21. Own five perks at the end of the round.
 22. All perks are offline.
-23. Only kill with First Room guns.
-24. Move of get hurt.
+23. Move of get hurt.
+24. Only kill with First Room guns.
 25. Survive with randomized loadout.
 26. Kill 48 (+24 for each player) zombies with the tank
 27. Only kill zombies indoors.
