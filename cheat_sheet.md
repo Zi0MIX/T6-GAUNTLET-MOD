@@ -59,5 +59,7 @@ Time increase is 160%
 - Round 27
 Workbench room in the wind tunnel counts as outside :(
 Game checks the position of the player, not zombies
+- Round 28
+Significantly increased chance of drop + removed drop cap
 - Round 30
 Ammo for upgraded staffs is taken away
