@@ -7,7 +7,7 @@ Patch that emulates gauntlet gamemode from BO4 on BO2 Origins
 3. Stand still.
 4. Own a perk at the end of the round.
 5. Pull a weapon from the mystery box.
-6. Solo - Dig up 3 piles / Coop - Dig up a pile.
+6. Dig up total amount of piles equal to players in game.
 7. Solo - Kill 6 zombies with melee attacks / Coop - Kill 12 zombies total with melee attacks.
 8. Own Jugger-Nog by the end of the round.
 9. Only kill with MP-40.

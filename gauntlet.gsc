@@ -57,7 +57,7 @@ OnPlayerConnect()
 
 	level waittill("initial_players_connected");
     level thread SetDvars();
-    level thread DevDebug("raygun_mark2_upgraded_zm", 7);   // For debugging
+    level thread DevDebug("raygun_mark2_upgraded_zm", 5);   // For debugging
 
     flag_wait("initial_blackscreen_passed");
 
@@ -107,10 +107,10 @@ OnPlayerConnect()
             level thread WatchPlayerStat(5, "grabbed_from_magicbox", 0, 0, undefined, undefined, undefined);
         }
 
-        // Dig 3 piles (1 for each on coop)
+        // Dig as many piles as there are players in game
         else if (level.round_number == 6)
         {
-            level thread WatchPlayerStat(6, "tomb_dig", 2, 0, undefined, undefined, undefined);
+            level thread WatchPlayerStat(6, "tomb_dig", 0, 0, 0, 0, level.players.size);
         }
 
         // Knife kill 6 zombies (12 coop)
@@ -630,7 +630,7 @@ GauntletHud(challenge, relative_var)
     }
     else if (challenge == 6)
     {
-        gauntlet_hud settext("Dig up " + relative_var);
+        gauntlet_hud settext("Dig up " + relative_var + " piles");
     }
     else if (challenge == 7)
     {
@@ -978,11 +978,7 @@ WatchPlayerStat(challenge, stat_1, multi_solo, multi_coop, stat_sum, sum_range_d
     rel_var = 0;
     if (challenge == 6)
     {
-        rel_var = "a pile";
-        if (level.players.size == 1)
-        {
-            rel_var = "3 piles";
-        }
+        rel_var = level.players.size;
     }
     else if (challenge == 7)
     {
@@ -1011,7 +1007,6 @@ WatchPlayerStat(challenge, stat_1, multi_solo, multi_coop, stat_sum, sum_range_d
         player.temp_beginning_stat = player.pers[stat_1];
         player.did_hit_box = 0;
         beginning_stat_sum += player.temp_beginning_stat;
-        // player iPrintLn("^1beginning stat: " + player.temp_beginning_stat); // debug
     }
 
     // Pass range for summarized stats to separate vars
@@ -1019,7 +1014,7 @@ WatchPlayerStat(challenge, stat_1, multi_solo, multi_coop, stat_sum, sum_range_d
     {
         l_sum_range_down = sum_range_down;
         l_sum_range_up = sum_range_up;
-        // Add coop multiplication to upper range for coop// Add coop multiplication to upper range for coop
+        // Add coop multiplication to upper range for coop
         if (level.players.size > 1)
         {
             l_sum_range_up += multi_coop;
@@ -1064,18 +1059,21 @@ WatchPlayerStat(challenge, stat_1, multi_solo, multi_coop, stat_sum, sum_range_d
                     if (player.did_hit_box != 1)
                     {
                         player.did_hit_box = 2;
+                        piles_in_progress = true;
                     }
 
                     // If met requirements for solo
                     if (temp_stat > (beg_stat + multi_solo) && level.players.size == 1)
                     {
                         player.did_hit_box = 1;
+                        proper_boxers++;
                     }
 
                     // If met requirements for coop
                     else if (temp_stat > (beg_stat + multi_coop) && level.players.size > 1)
                     {
                         player.did_hit_box = 1;
+                        proper_boxers++;
                     }
                 }
             }
@@ -1085,6 +1083,12 @@ WatchPlayerStat(challenge, stat_1, multi_solo, multi_coop, stat_sum, sum_range_d
                 print("temp_stat: " + player.name + ": " + temp_stat);
             }
         }
+
+        // if (isdefined(level.debug_weapons) && level.debug_weapons)
+        // { 
+        //     iPrintLn("l_stat_sum: " + l_stat_sum);
+        //     iPrintLn("l_sum_range_up: " + l_sum_range_up);
+        // }
 
         // Handle summarized stats outside of foreach loops as it's global
         if (isDefined(l_stat_sum) && l_stat_sum > 0)
@@ -1101,20 +1105,6 @@ WatchPlayerStat(challenge, stat_1, multi_solo, multi_coop, stat_sum, sum_range_d
                 proper_boxers = level.players.size;
             }
         }
-        // Count players who met requirements
-        else
-        {
-            if (player.did_hit_box == 1)
-            {
-                proper_boxers++;
-            }
-
-            // Notify that one of the players is in progress
-            else if (player.did_hit_box == 2 && !piles_in_progress)
-            {
-                piles_in_progress = true;
-            }
-        }
 
         // Define flow of meeting requirements
         if (proper_boxers == 0 && !piles_in_progress)
@@ -1129,7 +1119,7 @@ WatchPlayerStat(challenge, stat_1, multi_solo, multi_coop, stat_sum, sum_range_d
         else
         {
             ConditionsInProgress(true); 
-            }
+        }
 
         wait 0.05;
     }
@@ -1809,6 +1799,9 @@ DropWatcher()
     level.current_drops_blood = 0; 
     level.current_drops_point = 0;
     level.current_drops_sale = 0;
+
+    level.current_solo_points = 0;
+    level.current_team_points = 0;
     
     x = 0;
     while (1)
@@ -1821,6 +1814,9 @@ DropWatcher()
         points_temp = 0;
         sales_temp = 0;
 
+        team_points_temp = 0;
+        solo_points_temp = 0;
+
         foreach(player in level.players)
         {
             nukes_temp += player.pers["nuke_pickedup"];
@@ -1829,8 +1825,7 @@ DropWatcher()
             double_temp += player.pers["double_points_pickedup"];
             blood_temp += player.pers["zombie_blood_pickedup"];
             sales_temp += player.pers["fire_sale_pickedup"];
-            // Bonus points doesn't work
-            // points_temp += (player.pers["bonus_points_team_pickedup"] + player.pers["bonus_points_player_pickedup"]);
+            // Bonus points cannot be tracked without replacefunc
         }
 
         if (nukes_temp > level.current_drops_nuke)
@@ -1893,16 +1888,6 @@ DropWatcher()
             {
                 iPrintLn("Firesale taken");
             }       
-        }
-        else if (points_temp > level.current_drops_point)
-        {
-            // level.current_drops_point = points_temp;
-            // level notify ("points_taken");
-            // flag_set("points_taken");
-            // if (isdefined(level.debug_weapons) && level.debug_weapons)
-            // {
-            //     iPrintLn("Points taken");
-            // }       
         }
 
         // Clear flags on readpoint
