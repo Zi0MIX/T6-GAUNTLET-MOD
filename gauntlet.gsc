@@ -31,6 +31,7 @@ main()
     // Pluto QoL changes
     // replaceFunc(maps/mp/zombies/_zm_powerups::full_ammo_powerup, ::full_ammo_powerup_override);
     replaceFunc(maps/mp/zm_tomb_capture_zones::recapture_round_tracker, ::recapture_round_tracker_override);
+    replaceFunc(maps/mp/zombies/_zm_powerups::powerup_drop, ::powerup_drop_override);
 }
 
 init()
@@ -57,7 +58,7 @@ OnPlayerConnect()
 
 	level waittill("initial_players_connected");
     level thread SetDvars();
-    level thread DevDebug("raygun_mark2_upgraded_zm", 6);   // For debugging
+    level thread DevDebug("raygun_mark2_upgraded_zm", 28);   // For debugging
 
     flag_wait("initial_blackscreen_passed");
 
@@ -242,7 +243,7 @@ OnPlayerConnect()
         // Only kill with mp40
         else if (level.round_number == 28)
         {
-            level thread WatchPlayerStat(28, "drops", 0, 0, undefined, undefined, undefined);
+            level thread WatchPlayerStat(28, "drops", 0, 0, 0, 0, 1);
         }   
 
         // Guns eat up twice as much ammo
@@ -368,7 +369,7 @@ EndGameWatcher()
             EndGame();
         }
 
-        else if (level.round_number >= 30)
+        else if (level.round_number > 30)
         {
             WinGame();
         }
@@ -983,7 +984,7 @@ WatchPlayerStat(challenge, stat_1, multi_solo, multi_coop, stat_sum, sum_range_d
     level endon("end_game");
     level endon("start_of_round");
 
-    // Hardcode values for hud
+    // Hardcode values for rounds
     rel_var = 0;
     if (challenge == 6)
     {
@@ -1004,6 +1005,10 @@ WatchPlayerStat(challenge, stat_1, multi_solo, multi_coop, stat_sum, sum_range_d
         {
             rel_var = 7;
         }
+    }
+    else if (challenge == 28)
+    {
+        level.zombie_vars["zombie_powerup_drop_max_per_round"] = 4096;
     }
 
     self thread GauntletHud(challenge, rel_var);
@@ -1125,25 +1130,38 @@ WatchPlayerStat(challenge, stat_1, multi_solo, multi_coop, stat_sum, sum_range_d
         }
 
         // Define flow of meeting requirements
-        if (proper_boxers == 0 && !piles_in_progress)
+        if (challenge == 28)
         {
-            ConditionsMet(false);
-            ConditionsInProgress(false);            
-        }
-        else if (proper_boxers == level.players.size)
-        {
-            ConditionsMet(true);
+            ConditionsInProgress(true); 
+            if (proper_boxers > 0)
+            {
+                level.forbidden_weapon_used = true;
+                break;
+            }
         }
         else
         {
-            ConditionsInProgress(true); 
+            if (proper_boxers == 0 && !piles_in_progress)
+            {
+                ConditionsMet(false);
+                ConditionsInProgress(false);            
+            }
+            else if (proper_boxers == level.players.size)
+            {
+                ConditionsMet(true);
+            }
+            else
+            {
+                ConditionsInProgress(true); 
+            }
         }
 
         wait 0.05;
     }
     wait 0.1;
-    if (challenge == 28)
+    if (challenge == 28 && proper_boxers == 0)
     {
+        level.zombie_vars["zombie_powerup_drop_max_per_round"] = 4;
         ConditionsMet(true);
     }
 }
@@ -2865,7 +2883,6 @@ RandomizeGuns()
             // Compare against list of disalloed weapons
             if (isinarray(forbidden_weapons_array, weapons[w]))
             {
-                // iPrintLn(weapons[w] + " is not allowed");
                 w = randomInt(max_key);
                 wait 0.05;
                 continue;
@@ -2874,7 +2891,6 @@ RandomizeGuns()
             // Compare against having weapon (weapons with attachments get bypassed for now)
             if (players[i] has_weapon_or_upgrade(weapons[w]))
             {
-                // iPrintLn("already have " + weapons[w]);
                 w = randomInt(max_key);
                 wait 0.05;
                 continue;
@@ -2883,7 +2899,6 @@ RandomizeGuns()
             // Verify if incoming weapon is equipment
             if (is_lethal_grenade(weapons[w]) || is_tactical_grenade(weapons[w]) || is_placeable_mine(weapons[w]) || is_melee_weapon(weapons[w]))
             {
-                // iPrintLn(weapons[w] + " is equipment");
                 w = randomInt(max_key);
                 wait 0.05;
                 continue;
@@ -2892,7 +2907,6 @@ RandomizeGuns()
             // Failsafe if weapon key is too high
             if (w > max_key)
             {
-                // iPrintLn("key " + w + " is too big");
                 w /= 2;
                 wait 0.05;
                 continue;
@@ -2932,7 +2946,6 @@ RandomizeGuns()
             {
                 players[i] takeweapon(players[i].last_gungame_weapon);
             }
-            // iPrintLn("weapon: " + weapon);  // For debugging
             
             // Give upgraded weapon
             if (lucky_roll)
@@ -2949,7 +2962,6 @@ RandomizeGuns()
 	        players[i] switchtoweapon(weapon);
             players[i].last_gungame_weapon = weapon;
             flag_set("just_set_weapon");
-            // iPrintLn("has weapons after assigning: " + players[i] getweaponslistprimaries().size);
 
             i++;
             wait 0.05;
@@ -3301,4 +3313,105 @@ recapture_round_tracker_override()
 			level thread recapture_round_start();
 		}
 	}
+}
+
+powerup_drop_override(drop_point)
+//dsc
+{
+    if (isdefined(level.debug_weapons) && level.debug_weapons)
+    {
+        print("powerup_drop_count: " + level.powerup_drop_count);
+        print("drop_max_per_round: " + level.zombie_vars["zombie_powerup_drop_max_per_round"]);
+    }
+
+    if ( level.powerup_drop_count >= level.zombie_vars["zombie_powerup_drop_max_per_round"] )
+    {
+        return;
+    }
+
+    if ( !isdefined( level.zombie_include_powerups ) || level.zombie_include_powerups.size == 0 )
+    {
+        if (isdefined(level.debug_weapons) && level.debug_weapons)
+        {
+            iPrintLn("^3include powerups triggered");
+        }
+        return;
+    }
+
+    rand_drop = randomint( 100 );
+    if (level.round_number == 28)
+    {
+        rand_drop = randomint(16);
+    }
+
+    if (isdefined(level.debug_weapons) && level.debug_weapons)
+    {   
+        cc = "^1";
+        if (rand_drop < 3)
+        {
+            cc = "^2";
+        }
+        iPrintLn(cc + "ran_drop: " + rand_drop);
+    }
+
+    if ( rand_drop > 2 )
+    {
+        if ( !level.zombie_vars["zombie_drop_item"] )
+        {
+            return;
+        }
+    }
+
+    playable_area = getentarray( "player_volume", "script_noteworthy" );
+    level.powerup_drop_count++;
+    powerup = maps\mp\zombies\_zm_net::network_safe_spawn( "powerup", 1, "script_model", drop_point + vectorscale( ( 0, 0, 1 ), 40.0 ) );
+    valid_drop = 0;
+
+    if (isdefined(level.debug_weapons) && level.debug_weapons)
+    {
+        iPrintLn("playable_area: " + playable_area);
+    }
+    for ( i = 0; i < playable_area.size; i++ )
+    {
+        if ( powerup istouching( playable_area[i] ) )
+        {
+            valid_drop = 1;
+        }
+    }
+
+    if ( valid_drop && level.rare_powerups_active )
+    {
+        pos = ( drop_point[0], drop_point[1], drop_point[2] + 42 );
+
+        if ( check_for_rare_drop_override( pos ) )
+        {
+            level.zombie_vars["zombie_drop_item"] = 0;
+            valid_drop = 0;
+        }
+    }
+
+    if ( !valid_drop )
+    {
+        if (isdefined(level.debug_weapons) && level.debug_weapons)
+        {
+            iPrintLn("^3valid drop triggered");
+        }
+        level.powerup_drop_count--;
+        powerup delete();
+        return;
+    }
+
+    if (isdefined(level.debug_weapons) && level.debug_weapons)                  
+    {
+        iPrintLn("^5SHOULD DROP");
+    }
+    powerup powerup_setup();
+    print_powerup_drop( powerup.powerup_name, debug );
+    powerup thread powerup_timeout();
+    powerup thread powerup_wobble();
+    powerup thread powerup_grab();
+    powerup thread powerup_move();
+    powerup thread powerup_emp();
+    level.zombie_vars["zombie_drop_item"] = 0;
+    level notify( "powerup_dropped", powerup );
 }
