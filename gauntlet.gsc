@@ -1532,17 +1532,14 @@ CheckUsedWeapon(challenge)
 
     self thread GauntletHud(challenge);
 
-    if (isdefined(level.debug_weapons) && level.debug_weapons)
-    {    
-        iPrintLn("challenge: " + challenge);
-    }
-
     if (challenge != 26)
     {
         ConditionsInProgress(true);
     }
     current_round = level.round_number;
 
+    // Prevent instant game overs
+    wait 2;
     gun_mods_array = array("MOD_RIFLE_BULLET", "MOD_PISTOL_BULLET", "MOD_PROJECTILE_SPLASH", "MOD_PROJECTILE", "MOD_MELEE");
     robot_array = array("actor_zm_tomb_giant_robot_0", "actor_zm_tomb_giant_robot_1", "actor_zm_tomb_giant_robot_2");
     lethal_array = array("claymore_zm", "frag_grenade_zm", "sticky_grenade_zm", "cymbal_monkey_zm", "beacon_zm");
@@ -2527,6 +2524,8 @@ BuyNothing(challenge)
     init_downs = 0;
     init_deaths = 0;
 
+    // Prevent instant game overs
+    wait 2;
     foreach (player in level.players)
     {
         init_score += player.score;
