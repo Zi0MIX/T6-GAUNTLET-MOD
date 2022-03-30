@@ -30,12 +30,10 @@
 main()
 {
     // Pluto QoL changes
-    // replaceFunc(maps/mp/zombies/_zm_powerups::full_ammo_powerup, ::full_ammo_powerup_override);
 	replaceFunc(maps/mp/animscripts/zm_utility::wait_network_frame, ::wait_network_frame_override);
 	replaceFunc(maps/mp/zombies/_zm_utility::wait_network_frame, ::wait_network_frame_override);    
     replaceFunc(maps/mp/zm_tomb_capture_zones::recapture_round_tracker, ::recapture_round_tracker_override);
     replaceFunc(maps/mp/zombies/_zm_powerups::powerup_drop, ::powerup_drop_override);
-
 }
 
 init()
@@ -50,6 +48,7 @@ init()
     flag_init("double_taken");
     flag_init("blood_taken");
     flag_init("sale_taken");
+    flag_init("rnd_end");
 }
 
 OnPlayerConnect()
@@ -60,7 +59,7 @@ OnPlayerConnect()
 
 	level waittill("initial_players_connected");
     level thread SetDvars();
-    level thread DevDebug("raygun_mark2_upgraded_zm", 30);   // For debugging
+    level thread DevDebug("raygun_mark2_upgraded_zm", 4);   // For debugging
 
     flag_wait("initial_blackscreen_passed");
 
@@ -321,6 +320,9 @@ SetDvars()
         level.players_mulekick = 0;
         level.allplayersup = false;
 
+        level.hud_quota = 0;
+        level.hud_current = 0;
+
         level.player_too_many_weapons_monitor = 0;
 
         flag_clear("env_kill");
@@ -330,6 +332,7 @@ SetDvars()
         flag_clear("double_taken");
         flag_clear("blood_taken");
         flag_clear("sale_taken");
+        flag_clear("rnd_end");
 
         level waittill("end_of_round");
         wait 3; // Must be higher than 1 ::EndGameWatcher
@@ -619,6 +622,7 @@ ZombieCounterHudNew()
     counter_hud = createserverfontstring("hudsmall" , 1.4);
     counter_hud setPoint("CENTER", "CENTER", "CENTER", 190);
 	counter_hud.alpha = 1;
+    counter_hud.hidewheninmenu = 1;  
     counter_hud.label = &"ZOMBIES: ^5";
     counter_hud setValue(0); 
 
@@ -659,24 +663,20 @@ GauntletHud(challenge, relative_var)
 
     if (isdefined(gauntlet_hud))
     {
-        gauntlet_hud destroy_hud();
+        gauntlet_hud destroyelem();
     }
     if (!isdefined(relative_var))
     {
         relative_var = 0;
     }
 
-    gauntlet_hud = newHudElem();
-    gauntlet_hud.alignx = "right";
-    gauntlet_hud.aligny = "middle";
-    gauntlet_hud.horzalign = "user_right";
-    gauntlet_hud.vertalign = "user_center";
-    gauntlet_hud.x -= 3;
-    gauntlet_hud.y -= 20;
-    gauntlet_hud.fontscale = 1.4;
-    gauntlet_hud.alpha = 1;
-    gauntlet_hud.hidewheninmenu = 1;
-    gauntlet_hud.color = (1, 1, 1);
+    gauntlet_hud = createserverfontstring("hudsmall", 1.4);
+    gauntlet_hud setPoint("RIGHT", "RIGHT", "RIGHT", -25);
+	gauntlet_hud.alpha = 1;
+    gauntlet_hud.hidewheninmenu = 1;    
+    gauntlet_hud setText("Origins gauntlet");
+    gauntlet_hud.color = (0.6, 0.8, 1);
+
     gauntlet_hud settext("Origins gauntlet");
     if (challenge == 1)
     {
@@ -799,37 +799,13 @@ GauntletHud(challenge, relative_var)
         gauntlet_hud settext("Protect the staff chamber");
     }
 
-    while (level.round_number == challenge)
-    {
-        if (level.conditions_in_progress)
-        {
-            gauntlet_hud.color = (0.8, 0.8, 0);
-        }
-        else if (level.conditions_met)
-        {          
-            gauntlet_hud.color = (0, 0.8, 0);
-        }
-        else if (!level.conditions_met && !level.conditions_in_progress)
-        {
-            gauntlet_hud.color = (0.8, 0, 0);
-        }
-        else
-        {
-            gauntlet_hud.color = (1, 1, 1); // failsafe
-        }
-
-        wait 0.05;
-    }
-
-    wait 1;
-    gauntlet_hud.color = GauntletHudAfteraction();
+    level waittill ("end_of_round");
 
     wait 4;
-    gauntlet_hud fadeovertime(1.25);
+    gauntlet_hud fadeovertime(1.5);
     gauntlet_hud.alpha = 0;
-    wait 2;
-
-    // gauntlet_hud destroy_hud();
+    wait 1.5;
+    gauntlet_hud destroyelem();
 }
 
 GauntletHudAfteraction()
@@ -837,12 +813,176 @@ GauntletHudAfteraction()
 {
     if (level.conditions_met)
     {
-        return (0, 0.8, 0);
+        return (0.4, 0.7, 1);
     }
     else
     {
-        return (0.8, 0, 0);
+        return (1, 0.7, 0.4);
     }
+}
+
+ProgressHud(challenge, mode, text)
+// Hud to display challenge progress
+{
+    self endon("disconnect");
+    level endon("end_game");
+
+    if (!isdefined(text))
+    {
+        text = "SURVIVE";
+    }
+    if (!isdefined(mode))
+    {
+        mode = "none";
+    }
+    if (isdefined(progress_hud))
+    {
+        progress_hud destroyelem();
+    }
+
+    progress_hud = createserverfontstring("hudsmall" , 2);
+    progress_hud setPoint("RIGHT", "RIGHT", "RIGHT", "MIDDLE");
+	progress_hud.alpha = 0;
+    progress_hud.hidewheninmenu = 1;  
+    progress_hud setText("Origins gauntlet");
+    progress_hud.color = (1, 0.7, 0.4);
+
+    while (challenge == level.round_number)
+    {
+        progress_hud.alpha = 1;
+        if (mode == "counter")
+        {
+            if ((level.hud_current == 0 && level.hud_quota == 0) || level.conditions_met)
+            {
+                progress_hud.color = (0.4, 0.7, 1);         // Blue
+                progress_hud setText("SUCCESS");
+            }
+            else
+            {
+                progress_hud.color = (1, 0.7, 0.4);         // Orange
+                if (level.conditions_in_progress)
+                {
+                    progress_hud.color = (1, 1, 0.4);       // Yellow
+                }
+
+                progress_hud setText(level.hud_current + "/" + level.hud_quota);
+            }
+        }
+        else
+        {
+            progress_hud.color = (1, 0.7, 0.4);             // Orange
+            progress_hud setText(text);
+            if (level.conditions_met)
+            {
+                progress_hud.color = (0.4, 0.7, 1);         // Blue
+                progress_hud setText("SUCCESS");
+            }
+        }
+
+        wait 0.05;
+    }
+    progress_hud.color = (1, 0.7, 0.4);                     // Orange
+    // If statement deals with challenges that tick at the end of round
+    if (level.conditions_met)
+    {
+        progress_hud.color = (0.4, 0.7, 1);                 // Blue
+        progress_hud setText("SUCCESS");
+    }
+
+    wait 4;
+    progress_hud fadeovertime(1.5);
+    progress_hud.alpha = 0;
+    // wait 1.5;
+    // progress_hud destroyelem();
+}
+
+PersonalProgressHud(player_quota, player_id)
+// HUD for tracking personal progress. To call on player thread
+{
+    self endon("disconnect");
+    level endon("end_game");
+
+    if (isdefined(personal_hud))
+    {
+        personal_hud destroyelem();
+    }
+    if (!isdefined(player_quota))
+    {
+        player_quota = 1;
+    }
+    if (!isdefined(player_id))
+    {
+        player_id = 0;
+    }
+    current_round = level.round_number;
+
+    self thread BreakLoopOnRoundEnd(true);
+
+    personal_hud = createFontString("hudsmall" , 1.7);
+    personal_hud setPoint("RIGHT", "RIGHT", "RIGHT", 25);
+    personal_hud.alpha = 0;
+    personal_hud.hidewheninmenu = 1;  
+    personal_hud settext("Origins gauntlet");
+    personal_hud.color = (1, 0.7, 0.4);
+    personal_hud.label = &"PERSONAL: ";
+
+    while (current_round == level.round_number)
+    {
+        if (isdefined(level.players[player_id].personal_var))
+        {
+            if (isdefined(personal) && (personal == level.players[player_id].personal_var))
+            {
+                wait 0.05;
+                continue;
+            }
+            
+            personal = level.players[player_id].personal_var;
+            text_updated = (personal + "/" + player_quota);
+            personal_hud settext(text_updated);
+            if (isdefined(level.debug_weapons) && level.debug_weapons)
+            {
+                self iPrintLn("text: " + text_updated);
+            }
+
+            personal_hud.color = (1, 0.7, 0.4);                // Orange
+            if (personal == player_quota)
+            {
+                personal_hud.color = (0.4, 0.7, 1);            // Blue
+            }
+
+            if (personal_hud.alpha == 0)
+            {
+                if (isdefined(level.debug_weapons) && level.debug_weapons)
+                {
+                    iPrintLn("alpha 1");
+                }
+                personal_hud.alpha = 1;
+            }
+        }
+        else
+        {
+            if (isdefined(level.debug_weapons) && level.debug_weapons)
+            {
+                iPrintLn("undefined player_curr");
+            }
+            wait 1;
+        }
+
+        // if (flag("rnd_end"))
+        // {
+        //     break;
+        // }
+        wait 0.05;
+    }
+    personal_hud.color = (1, 0.7, 0.4);                    // Orange
+    if (level.conditions_met)
+    {
+        personal_hud.color = (0.4, 0.7, 1);                // Blue
+    }
+
+    wait 4;
+    personal_hud fadeovertime(1.5);
+    personal_hud.alpha = 0;
 }
 
 CustomEndScreen()
@@ -963,8 +1103,15 @@ CheckForGenerator(challenge, gen_id, rnd_override)
         self.current_round = rnd_override;
     }
     self.generator_id = gen_id;
+    level.hud_quota = 1;
+    if (gen_id == 0)
+    {
+        level.hud_quota = 6;
+    }
 
     self thread GauntletHud(challenge);
+    self thread ProgressHud(challenge, "counter");
+    self thread GenControlProgress();
     self thread GeneratorCondition();
     self thread GeneratorWatcher();
 }
@@ -1097,6 +1244,75 @@ GeneratorWatcher()
             level.active_gen_6 = false;
         }
 
+        wait 0.05;
+    }
+}
+
+GenControlProgress()
+// Function to calculate progress for generators on hud
+{
+    while (1)
+    {
+        if (self.generator_id == 0)
+        {
+            level.hud_current = 0;
+
+            if (level.active_gen_1)
+            {
+                level.hud_current++;
+            }
+            if (level.active_gen_2)
+            {
+                level.hud_current++;
+            }        
+            if (level.active_gen_3)
+            {
+                level.hud_current++;
+            }        
+            if (level.active_gen_4)
+            {
+                level.hud_current++;
+            }        
+            if (level.active_gen_5)
+            {
+                level.hud_current++;
+            } 
+            if (level.active_gen_6)
+            {
+                level.hud_current++;
+            }  
+        }    
+        else
+        {
+            if (self.generator_id == 1 && level.active_gen_1)
+            {
+                level.hud_current = 1;
+            }
+            else if (self.generator_id == 2 && level.active_gen_2)
+            {
+                level.hud_current = 1;
+            }
+            else if (self.generator_id == 3 && level.active_gen_3)
+            {
+                level.hud_current = 1;
+            }
+            else if (self.generator_id == 4 && level.active_gen_4)
+            {
+                level.hud_current = 1;
+            }
+            else if (self.generator_id == 5 && level.active_gen_5)
+            {
+                level.hud_current = 1;
+            }
+            else if (self.generator_id == 6 && level.active_gen_6)
+            {
+                level.hud_current = 1;
+            }
+            else
+            {
+                level.hud_current = 0;
+            }
+        }
         wait 0.05;
     }
 }
@@ -1341,7 +1557,17 @@ DisableMovement(challenge)
 
     ConditionsInProgress(true);
 
+    if (challenge == 3)
+    {
+        text = "CAN'T MOVE";
+    }
+    else if (challenge == 10)
+    {
+        text = "CAN'T JUMP";
+    }
+
     self thread GauntletHud(challenge);
+    self thread ProgressHud(challenge, "none", text);
     self thread WatchDownedPlayers();
 
     current_round = level.round_number;
@@ -1414,9 +1640,21 @@ WatchPerks(challenge, number_of_perks)
     {
         number_of_perks = 4;
     }
+
+    level.proper_players = 0;
+    level.hud_quota = (number_of_perks * level.players.size);
     
     self thread GauntletHud(challenge, number_of_perks);
-    level.proper_players = 0;
+    self thread ProgressHud(challenge, "counter");
+    id = 0;
+    foreach (player in level.players)
+    {
+        if (level.players.size > 1)
+        {
+            player thread PersonalProgressHud(number_of_perks, id);
+            id++;
+        }
+    }
 
     if (challenge == 8)
     {
@@ -1446,6 +1684,7 @@ PerkTracker()
     current_round = level.round_number;
     foreach (player in level.players)
     {
+        player.personal_hud = 0;
         player.owned_perks = 0;
     }
 
@@ -1460,71 +1699,89 @@ PerkTracker()
         hasstam = 0;
         hascherry = 0;
         hasmule = 0;
+    
+        global_perks = 0;
         foreach (player in level.players)
         {
-            player.temp_owned_perks = 0;
+            temp_owned_perks = 0;
 
             if (player hasperk("specialty_armorvest"))
             {
                 hasjug++;
-                player.temp_owned_perks++;
+                temp_owned_perks++;
+                // Hardcoded for personal hud
+                if (current_round == 8)
+                {
+                    player.personal_var = 1;
+                }
+            }
+            else
+            {
+                if (current_round == 8)
+                {
+                    player.personal_var = 0;
+                }
             }
 
             if (player hasperk("specialty_quickrevive"))
             {
                 hasquick++;
-                player.temp_owned_perks++;
+                temp_owned_perks++;
             }
 
             if (player hasperk("specialty_rof"))
             {
                 hasdoubletap++;
-                player.temp_owned_perks++;
+                temp_owned_perks++;
             }
             
             if (player hasperk("specialty_fastreload"))
             {
                 hasspeed++;
-                player.temp_owned_perks++;
+                temp_owned_perks++;
             }
             
             if (player hasperk("specialty_flakjacket"))
             {
                 hasphd++;
-                player.temp_owned_perks++;
+                temp_owned_perks++;
             }  
            
             if (player hasperk("specialty_deadshot"))
             {
                 hasdeadshot++;
-                player.temp_owned_perks++;
+                temp_owned_perks++;
             }
             
             if (player hasperk("specialty_longersprint"))
             {
                 hasstam++;
-                player.temp_owned_perks++;
+                temp_owned_perks++;
             }   
 
             if (player hasperk("specialty_grenadepulldeath"))
             {
                 hascherry++;
-                player.temp_owned_perks++;
+                temp_owned_perks++;
             }
 
 
             if (player hasperk("specialty_additionalprimaryweapon"))
             {
                 hasmule++;
-                player.temp_owned_perks++;
+                temp_owned_perks++;
             }
 
             // Sum the amount of perks player has on him rn
-            if (player.owned_perks != player.temp_owned_perks)
+            if (player.owned_perks != temp_owned_perks)
             {
-                player.owned_perks = player.temp_owned_perks;
-            }                                            
+                player.owned_perks = temp_owned_perks;
+            }   
+            player.personal_var = temp_owned_perks;
+            global_perks += temp_owned_perks;
         } 
+        level.hud_current = global_perks;
+
         level.players_jug = hasjug;
         level.players_quick = hasquick;
         level.players_doubletap = hasdoubletap;
@@ -1659,6 +1916,10 @@ CheckUsedWeapon(challenge)
     level endon("start_of_round");
 
     self thread GauntletHud(challenge);
+    if (challenge == 2)
+    {
+        self thread ProgressHud(challenge, "none", "DON'T SHOOT");
+    }
 
     if (challenge != 26)
     {
@@ -3235,12 +3496,20 @@ CompareKillsWithZones(challenge, allowed_zones)
     ConditionsMet(true);
 }
 
-BreakLoopOnRoundEnd()
+BreakLoopOnRoundEnd(use_flag)
 // Change level variable on round end
 {
-    level.breakearly = false;
-    level waittill ("end_of_round");
-    level.breakearly = true;
+    if (isdefined(use_flag) && use_flag)
+    {
+        level waittill ("end_of_round");
+        flag_set("rnd_end");
+    }
+    else
+    {
+        level.breakearly = false;
+        level waittill ("end_of_round");
+        level.breakearly = true;
+    }
 }
 
 TankEm(challenge)

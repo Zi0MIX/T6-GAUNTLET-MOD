@@ -35,7 +35,7 @@ One second chance for a game. On solo it'll down you (game is over if you don't 
 
 # Challenges that can be failed:
 Challenges that you can fail by doing or not doing something particular. Other challenges you just gotta survive with customized rules of the game.
-1, 2, 4, 5, 6, 7, 8, 9, 11, 12, 15, 17, 19, 20, 23, 26, 27, 28, 30
+1, 2, 4, 5, 6, 7, 8, 9, 11, 12, 15, 17, 19, 20, 24, 26, 27, 28, 30
 
 # Optimizations for 5-8p lobbies:
 - Round 21
@@ -44,7 +44,7 @@ Amount of perks reduced to 4
 # Game rules:
 - Panzer rounds: 8, 12, 16, 20, 24, 28, 30
 - Generator rounds: 10, 14, 18, 23, 26
-##### Weather
+### Weather
 Weather is predefined for rounds 6-12
 - Round 6 & 7 - Snow
 - Round 8 - Clear
