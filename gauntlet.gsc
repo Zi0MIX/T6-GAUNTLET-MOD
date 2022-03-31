@@ -57,11 +57,11 @@ OnPlayerConnect()
 {
 	level waittill("connecting", player );	
     
-	player thread OnPlayerSpawned();
+	level thread OnPlayerSpawned();
 
 	level waittill("initial_players_connected");
     level thread SetDvars();
-    // level thread DevDebug("raygun_mark2_upgraded_zm", 16);   // For debugging
+    level thread DevDebug("raygun_mark2_upgraded_zm", 5);   // For debugging
 
     flag_wait("initial_blackscreen_passed");
 
@@ -240,10 +240,10 @@ OnPlayerConnect()
             level thread TankEm(26);
         }  
 
-        // Protect church
+        // Only kill zombies indoors
         else if (level.round_number == 27)
         {
-            level thread CompareKillsWithZones(27);
+            level thread IndoorsHub(27);
         }
 
         // Only kill with mp40
@@ -274,9 +274,19 @@ OnPlayerSpawned()
     level endon( "game_ended" );
 	self endon( "disconnect" );
 
-	self waittill( "spawned_player" );
-
 	flag_wait( "initial_blackscreen_passed" );
+
+	for (;;)
+    {
+        level waittill("connected", player);
+        player thread PlayerInit();
+    }
+}
+
+PlayerInit()
+// Function to execute for players joining game
+{
+
 }
 
 SetDvars()
@@ -292,7 +302,6 @@ SetDvars()
     level.conditions_in_progress = false;
     self thread LevelDvarsWatcher();
     level.player_too_many_weapons_monitor = 0;
-    level.rnd_size = 0;
     level.second_chance = true;
     level.callbackactorkilled = ::actor_killed_override; // Pointer
     // level.player_too_many_weapons_monitor_func = ::player_too_many_weapons_monitor_override;
@@ -599,14 +608,8 @@ TimerHud()
     self endon("disconnect");
     level endon("end_game");
 
-    timer_hud = newHudElem();
-	timer_hud.alignx = "right";					
-	timer_hud.aligny = "top";
-	timer_hud.horzalign = "user_right";			
-	timer_hud.vertalign = "user_top";
-	timer_hud.x = -3; 							
-	timer_hud.y = 15;							
-	timer_hud.fontscale = 1.5;
+    timer_hud = createserverfontstring("hudsmall" , 1.6);
+	timer_hud setPoint("TOPRIGHT", "TOPRIGHT", 0, 0);					
 	timer_hud.alpha = 1;
 	timer_hud.color = (0.6, 0.8, 1);
 	timer_hud.hidewheninmenu = 1;
@@ -620,10 +623,8 @@ ZombieCounterHudNew()
     self endon("disconnect");
     level endon("end_game");
 
-    self thread PullRoundZombies();
-
     counter_hud = createserverfontstring("hudsmall" , 1.4);
-    counter_hud setPoint("CENTER", "CENTER", "CENTER", 190);
+    counter_hud setPoint("CENTER", "CENTER", "CENTER", 210);
 	counter_hud.alpha = 1;
     counter_hud.hidewheninmenu = 1;  
     counter_hud.label = &"ZOMBIES: ^5";
@@ -636,21 +637,15 @@ ZombieCounterHudNew()
         if (isdefined(level.zombie_total))
         {
             current_zombz = get_round_enemy_array().size + level.zombie_total;
-            // print("current_zombz: " + current_zombz);
         }
 
-        if (isdefined(level.rnd_size))
-        {      
-            // If round size is over 36 zombies and remaining is smaller than 10%
-            if (level.rnd_size > 36 && (current_zombz < (level.rnd_size / 10)))
-            {
-                counter_hud.label = &"ZOMBIES: ^3";
-            }
-            else
-            {
-                counter_hud.label = &"ZOMBIES: ^5";
-            }
-            // print("rnd_size: " + level.rnd_size);
+        if (level.round_number >= 10 && current_zombz <= 12)
+        {
+            counter_hud.label = &"ZOMBIES: ^3";
+        }
+        else
+        {
+            counter_hud.label = &"ZOMBIES: ^5";
         }
 
         counter_hud setValue(current_zombz); 
@@ -674,7 +669,7 @@ GauntletHud(challenge, relative_var)
     }
 
     gauntlet_hud = createserverfontstring("hudsmall", 1.4);
-    gauntlet_hud setPoint("RIGHT", "RIGHT", "RIGHT", 20);
+    gauntlet_hud setPoint("TOPRIGHT", "TOPRIGHT", 0, 50);
 	gauntlet_hud.alpha = 1;
     gauntlet_hud.hidewheninmenu = 1;    
     gauntlet_hud setText("Origins gauntlet");
@@ -842,7 +837,7 @@ ProgressHud(challenge, mode, text)
     }
 
     progress_hud = createserverfontstring("hudsmall" , 2);
-    progress_hud setPoint("RIGHT", "RIGHT", "RIGHT", 40);
+    progress_hud setPoint("TOPRIGHT", "TOPRIGHT", 0, 70);
 	progress_hud.alpha = 0;
     progress_hud.hidewheninmenu = 1;  
     progress_hud setText("Origins gauntlet");
@@ -933,7 +928,7 @@ PersonalProgressHud(player_quota, player_id)
     current_round = level.round_number;
 
     personal_hud = createFontString("hudsmall" , 1.7);
-    personal_hud setPoint("RIGHT", "RIGHT", "RIGHT", 60);
+    personal_hud setPoint("TOPRIGHT", "TOPRIGHT", 0, 90);
     personal_hud.alpha = 0;
     personal_hud.hidewheninmenu = 1;  
     personal_hud settext("Origins gauntlet");
@@ -1023,7 +1018,7 @@ ZoneHudPersonal(time, player_id)
     current_round = level.round_number;
 
     zone_hud = createFontString("hudsmall" , 1.7);
-    zone_hud setPoint("RIGHT", "RIGHT", "RIGHT", 60);
+    zone_hud setPoint("TOPRIGHT", "TOPRIGHT", 0, 90);
     zone_hud.alpha = 0;
     zone_hud.hidewheninmenu = 1;  
     zone_hud settext("Origins gauntlet");
@@ -1202,17 +1197,6 @@ BetaHud(beta_version)
 	counter_hud.alpha = 0.3;
     counter_hud.label = &"^4BETA V";
     counter_hud setValue(beta_version); 
-}
-
-PullRoundZombies()
-// Function dumps fixed max amount of zombies each round to separate var
-{
-    while (1)
-    {
-        level waittill ("start_of_round");
-        level.rnd_size = level.zombie_total + get_round_enemy_array().size;
-        wait 0.05;
-    }
 }
 
 CheckForGenerator(challenge, gen_id, rnd_override)
@@ -1604,9 +1588,9 @@ WatchPlayerStat(challenge, stat_1, goal_solo, goal_coop, stat_sum, sum_range_dow
 
         if (isdefined(level.debug_weapons) && level.debug_weapons)
         { 
-            iPrintLn("l_stat_sum: " + l_stat_sum);
-            iPrintLn("l_beg_sum: " + l_beg_sum);
-            iPrintLn("l_sum_range_up: " + l_sum_range_up);
+            // iPrintLn("l_stat_sum: " + l_stat_sum);
+            // iPrintLn("l_beg_sum: " + l_beg_sum);
+            // iPrintLn("l_sum_range_up: " + l_sum_range_up);
         }
 
         // Handle summarized stats outside of foreach loops as it's global
@@ -1634,6 +1618,11 @@ WatchPlayerStat(challenge, stat_1, goal_solo, goal_coop, stat_sum, sum_range_dow
         if (isdefined(l_stat_res))
         {
             level.hud_current = l_stat_res;
+        }
+
+        if (isdefined(level.hud_current) && level.hud_current < 0)
+        {
+            level.hud_current = 0;
         }
 
         // Define flow of meeting requirements
@@ -2220,7 +2209,7 @@ CheckUsedWeapon(challenge)
         }
 
         // COMPARE MEANS OF DEATH AGAINST CHALLENGES
-        if (challenge == 2 || challenge == 9 || challenge == 19 || challenge == 24)
+        if (challenge == 2 || challenge == 9 || challenge == 19 || challenge == 24 || challenge == 26)
         {
             // CASE = MELEE
             if (challenge == 2)
@@ -2498,18 +2487,20 @@ actor_killed_override( einflictor, attacker, idamage, smeansofdeath, sweapon, vd
     level.weapon_used = sweapon;
     level.weapon_mod = smeansofdeath;
     level.killer_class = attacker.classname;
-    level.killer_name = attacker.clientid;
+    level.killer_name = attacker.name;
+    level.killer_id = attacker.clientid;
     level notify ("zombie_killed");
     if (isdefined(level.debug_weapons) && level.debug_weapons)
     {    
-        // print("einflictor: " + einflictor);
-        // print("attacker: " + attacker.classname);    
-        // print("idamage: " + idamage);
-        // print("smeansofdeath: " + smeansofdeath);
-        // print("sweapon: " + sweapon);
-        // print("vdir: " + vdir);
-        // print("shitloc: " + shitloc);
-        // print("psoffsettime: " + psoffsettime);
+        print("einflictor: " + einflictor);
+        print("attacker: " + attacker.classname);   
+        print("attacker_name: " + attacker.name); 
+        print("idamage: " + idamage);
+        print("smeansofdeath: " + smeansofdeath);
+        print("sweapon: " + sweapon);
+        print("vdir: " + vdir);
+        print("shitloc: " + shitloc);
+        print("psoffsettime: " + psoffsettime);
     }
 
     if ( game["state"] == "postgame" )
@@ -2766,9 +2757,9 @@ TooManyPanzers(challenge, is_supporting)
     ConditionsMet(true);
 }
 
-SpawnPanzer()
+SpawnPanzer(current_round)
 {
-    while (current_round == level.current_round)
+    while (current_round == level.round_number)
     {
         if (level.mech_zombies_alive < level.wanted_mechz)
         {
@@ -3637,8 +3628,7 @@ FillStolenGuns()
     }
 }
 
-CompareKillsWithZones(challenge, allowed_zones)
-// Function takes the position of a player (or all players if it's environment kill) and compares it against a list of allowed zones
+IndoorsHub(challenge, allowed_zones)
 {
     level endon("end_game");
     level endon("start_of_round"); 
@@ -3660,6 +3650,22 @@ CompareKillsWithZones(challenge, allowed_zones)
     self thread BreakLoopOnRoundEnd();
     self thread EnvironmentKills();
 
+    id = 0;
+    foreach(player in level.players)
+    {
+        player thread CompareKillsWithZones(allowed_zones, id, current_round);
+        id++;
+    }
+
+    level waittill ("end_of_round");
+    wait 0.1;
+    ConditionsMet(true);
+
+}
+
+CompareKillsWithZones(allowed_zones, player_id, current_round)
+// Function takes the position of a player (or all players if it's environment kill) and compares it against a list of allowed zones
+{
     while (current_round == level.round_number)
     {
         level waittill_any ("zombie_killed", "end_of_round", "env_kill");
@@ -3668,42 +3674,42 @@ CompareKillsWithZones(challenge, allowed_zones)
             break;
         }
 
-        i = 0;
-        foreach(player in level.players)
+        if (isdefined(level.debug_weapons) && level.debug_weapons)
         {
-            current_zone = player get_current_zone();
-            // Scan all players if it's env kill
-            if (flag("env_kill"))
-            {
-                if (!isinarray(allowed_zones, current_zone))
-                {
-                    level.forbidden_weapon_used = true;
-                }
-            }
-            // Pull id of player who kills
-            else if (player.name == level.killer_class)
-            {
-                matched_player = i;
-                break;
-            }
-            i++;
+            // self iPrintLn("tick");
         }
 
-        current_zone = players[matched_player] get_current_zone();
-        flag_clear("env_kill");
+        player_zone = level.players[player_id] get_current_zone();
+        if (flag("env_kill"))
+        {
+            if (!isinarray(allowed_zones, player_zone))
+            {
+                if (isdefined(level.debug_weapons) && level.debug_weapons)
+                {
+                    self iPrintLn("env_kill_outside");
+                }
+                level.forbidden_weapon_used = true;
+                flag_clear("env_kill");
+            }
+        }
 
-        if (!flag("env_kill"))
+        else if (level.players[player_id].name == level.killer_name)
         {
             // Compare the position of killer against allowed zones
-            if (!isinarray(allowed_zones, current_zone) && level.weapon_used != "none")
+            if (!isinarray(allowed_zones, player_zone) && level.weapon_used != "none")
             {
+                if (isdefined(level.debug_weapons) && level.debug_weapons)
+                {
+                    self iPrintLn("kill_outside");
+                    self iPrintLn("current_zone: " + player_zone);
+                    self iPrintLn("killer_name: " + level.killer_name);
+                    self iPrintLn("name: " + level.players[player_id].name);
+                }
                 level.forbidden_weapon_used = true;
             }
         }
         wait 0.05;
     }
-    wait 0.1;
-    ConditionsMet(true);
 }
 
 BreakLoopOnRoundEnd(use_flag)
@@ -3942,8 +3948,8 @@ powerup_drop_override(drop_point)
 {
     if (isdefined(level.debug_weapons) && level.debug_weapons)
     {
-        print("powerup_drop_count: " + level.powerup_drop_count);
-        print("drop_max_per_round: " + level.zombie_vars["zombie_powerup_drop_max_per_round"]);
+        // print("powerup_drop_count: " + level.powerup_drop_count);
+        // print("drop_max_per_round: " + level.zombie_vars["zombie_powerup_drop_max_per_round"]);
     }
 
     if ( level.powerup_drop_count >= level.zombie_vars["zombie_powerup_drop_max_per_round"] )
@@ -3955,7 +3961,7 @@ powerup_drop_override(drop_point)
     {
         if (isdefined(level.debug_weapons) && level.debug_weapons)
         {
-            iPrintLn("^3include powerups triggered");
+            // iPrintLn("^3include powerups triggered");
         }
         return;
     }
@@ -3973,7 +3979,7 @@ powerup_drop_override(drop_point)
         {
             cc = "^2";
         }
-        iPrintLn(cc + "ran_drop: " + rand_drop);
+        // iPrintLn(cc + "ran_drop: " + rand_drop);
     }
 
     if ( rand_drop > 2 )
@@ -4023,7 +4029,7 @@ powerup_drop_override(drop_point)
 
     if (isdefined(level.debug_weapons) && level.debug_weapons)                  
     {
-        iPrintLn("^5SHOULD DROP");
+        // iPrintLn("^5SHOULD DROP");
     }
     powerup powerup_setup();
     // print_powerup_drop( powerup.powerup_name, debug );

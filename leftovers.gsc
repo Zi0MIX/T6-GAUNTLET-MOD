@@ -610,6 +610,17 @@ ZombieCounterHud()
     }
 }
 
+PullRoundZombies()
+// Function dumps fixed max amount of zombies each round to separate var
+{
+    while (1)
+    {
+        level waittill ("start_of_round");
+        level.rnd_size = level.zombie_total + get_round_enemy_array().size;
+        wait 0.05;
+    }
+}
+
 // full_ammo_powerup_override(drop_item, player)
 // // Override, notify level if max is obtained
 // {
