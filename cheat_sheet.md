@@ -15,7 +15,7 @@
 14. Survive round with super-sprinters.
 15. Activate all generators.
 16. Survive round with panzers.
-17. Solo - Dig up 7 piles / Coop - Dig up 2 piles.
+17. Dig up 7 piles in total.
 18. Time is faster.
 19. Only kill with MP-40.
 20. Protect church.
@@ -28,7 +28,7 @@
 27. Only kill zombies indoors.
 28. Don't pick up any drops.
 29. You use twice as much ammo.
-30. Protect staff chamber
+30. Protect staff chamber.
 
 # Second chance:
 One second chance for a game. On solo it'll down you (game is over if you don't have a qr). On coop it downs everyone but one (randomly selected) player. Second chance cannot be used on last round.
