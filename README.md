@@ -36,3 +36,4 @@ Patch that emulates gauntlet gamemode from BO4 on BO2 Origins
 # Known issues
 - Workbench in air tunnel is "outside"
 - You win screen doesn't work with 2 HUD elements
+- Couning hud fucks up

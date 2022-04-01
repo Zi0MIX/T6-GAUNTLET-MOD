@@ -70,6 +70,7 @@ OnPlayerConnect()
     level thread ZombieCounterHudNew();
     level thread NetworkFrameHud();
     level thread GauntletHud();
+    level thread ProgressHud();
     level thread BetaHud(9);
 
     level thread EndGameWatcher();
@@ -310,6 +311,9 @@ SetDvars()
     level.weapon_used = undefined;
     level.killer_class = undefined;
 
+    level.hud_quota = 0;
+    level.hud_current = 0;
+
     while (1)
     {
         level.conditions_met = false;
@@ -333,8 +337,8 @@ SetDvars()
         level.allplayersup = false;
 
         level.relative_var = 0;
-        level.hud_quota = 0;
-        level.hud_current = 0;
+        // level.hud_quota = 0;
+        // level.hud_current = 0;
 
         level.player_too_many_weapons_monitor = 0;
 
@@ -823,94 +827,185 @@ GauntletHudAfteraction()
     }
 }
 
-ProgressHud(challenge, mode, text)
+ProgressHud()
 // Hud to display challenge progress
 {
     self endon("disconnect");
     level endon("end_game");
 
-    if (!isdefined(text))
-    {
-        text = "SURVIVE";
-    }
-    if (!isdefined(mode))
-    {
-        mode = "none";
-    }
     if (isdefined(progress_hud))
     {
-        progress_hud destroyelem();
+        self.progress_hud destroyelem();
     }
 
-    progress_hud = createserverfontstring("hudsmall" , 2);
-    progress_hud setPoint("TOPRIGHT", "TOPRIGHT", 0, 70);
-	progress_hud.alpha = 0;
-    progress_hud.hidewheninmenu = 1;  
-    progress_hud setText("Origins gauntlet");
-    progress_hud.color = (1, 0.7, 0.4);
+    level waittill("start_of_round");
 
-    while (challenge == level.round_number)
+    self.progress_hud = createserverfontstring("hudsmall" , 2);
+    self.progress_hud setPoint("TOPRIGHT", "TOPRIGHT", 0, 70);
+    self.progress_hud.alpha = 0;
+    self.progress_hud.hidewheninmenu = 1;  
+    self.progress_hud setText("Origins gauntlet");
+    self.progress_hud.color = (1, 0.7, 0.4);
+
+    mode_counter = array(1, 4, 8, 5, 6, 7, 17, 21, 26);
+    mode_zone = array(20, 30);
+
+    while (1)
     {
-        progress_hud.alpha = 1;
+        text = undefined;
+        mode = undefined;
+        current_round = level.round_number;
+        self.progress_hud.color = (1, 0.7, 0.4);                 // Orange
+
+        if (isinarray(mode_counter, current_round))
+        {
+            mode = "counter";
+        }
+        else if (isinarray(mode_zone, current_round))
+        {
+            mode = "zone";
+        }
+        else
+        {
+            if (current_round == 2)
+            {
+                text = "MELEE WEAPONS";
+            }
+            else if (current_round == 3)
+            {
+                text = "CAN'T MOVE";
+            }
+            else if (current_round == 9 || current_round == 19)
+            {
+                text = "MP-40";
+            }
+            else if (current_round == 10)
+            {
+                text = "CAN'T JUMP";
+            }
+            else if (current_round == 12)
+            {
+                text = "YET TO UPGRADE";
+            }
+            else if (current_round == 13)
+            {
+                text = "POINTS";
+            }
+            else if (current_round == 20)
+            {
+                text = "CHURCH";
+            }
+            else if (current_round == 23)
+            {
+                text = "HEALTH";
+            }
+            else if (current_round == 24)
+            {
+                text = "FIRST ROOM WEAPONS";
+            }
+            else if (current_round == 27)
+            {
+                text = "INDOORS";
+            }
+            else if (current_round == 28)
+            {
+                text = "POWERUPS";
+            }
+            else if (current_round == 29)
+            {
+                text = "ONE SHOT = TWO BULLETS";
+            }
+            else if (current_round == 30)
+            {
+                text = "STAFF CHAMBER";
+            }
+        }
+
+        if (!isdefined(text))
+        {
+            text = "SURVIVE";
+        }
+        if (!isdefined(mode))
+        {
+            mode = "none";
+        }
+
+        self.progress_hud.alpha = 1;
+        self thread ProgressHudSet(mode, text);
+        
+        level waittill("end_of_round");
+
+        wait 1;
+        self.progress_hud.color = (1, 0.7, 0.4);                     // Orange
+        // If statement deals with challenges that tick at the end of round
+        if (level.conditions_met)
+        {
+            self.progress_hud.color = (0.4, 0.7, 1);                 // Blue
+            self.progress_hud setText("SUCCESS");
+        }
+        wait 4;
+        self.progress_hud fadeovertime(1.5);
+        self.progress_hud.alpha = 0;
+
+        level waittill("start_of_round");
+        // wait 1.5;
+        // progress_hud destroyelem();
+    }
+}
+
+ProgressHudSet(mode, text)
+{
+    level endon("end_of_round");
+    
+    while (1)
+    {
         if (mode == "counter")
         {
-            if ((level.hud_current == 0 && level.hud_quota == 0) || level.conditions_met)
+            if (level.conditions_met)
             {
-                progress_hud.color = (0.4, 0.7, 1);         // Blue
-                progress_hud setText("SUCCESS");
+                self.progress_hud.color = (0.4, 0.7, 1);         // Blue
+                self.progress_hud setText("SUCCESS");
             }
             else
             {
-                progress_hud.color = (1, 0.7, 0.4);         // Orange
                 if (level.conditions_in_progress)
                 {
-                    progress_hud.color = (1, 1, 0.4);       // Yellow
+                    self.progress_hud.color = (1, 1, 0.4);       // Yellow
+                }
+                else
+                {
+                    self.progress_hud.color = (1, 0.7, 0.4);     // Orange
                 }
 
-                progress_hud setText(level.hud_current + "/" + level.hud_quota);
+                self.progress_hud setText(level.hud_current + "/" + level.hud_quota);
             }
         }
         else if (mode == "zone")
         {
-            progress_hud.color = (1, 0.7, 0.4);             // Orange
-            progress_hud setText(text);
+            self.progress_hud.color = (1, 0.7, 0.4);             // Orange
+            self.progress_hud setText(text);
             if (level.conditions_in_progress)
             {
-                progress_hud.color = (1, 1, 0.4);           // Yellow
+                self.progress_hud.color = (1, 1, 0.4);           // Yellow
             }
             else if (level.conditions_met)
             {
-                progress_hud.color = (0.4, 0.7, 1);         // Blue
-                progress_hud setText("SUCCESS");
+                self.progress_hud.color = (0.4, 0.7, 1);         // Blue
+                self.progress_hud setText("SUCCESS");
             }
         }
         else
         {
-            progress_hud.color = (1, 0.7, 0.4);             // Orange
-            progress_hud setText(text);
+            self.progress_hud.color = (1, 0.7, 0.4);             // Orange
+            self.progress_hud setText(text);
             if (level.conditions_met)
             {
-                progress_hud.color = (0.4, 0.7, 1);         // Blue
-                progress_hud setText("SUCCESS");
+                self.progress_hud.color = (0.4, 0.7, 1);         // Blue
+                self.progress_hud setText("SUCCESS");
             }
         }
-
         wait 0.05;
     }
-    wait 1;
-    progress_hud.color = (1, 0.7, 0.4);                     // Orange
-    // If statement deals with challenges that tick at the end of round
-    if (level.conditions_met)
-    {
-        progress_hud.color = (0.4, 0.7, 1);                 // Blue
-        progress_hud setText("SUCCESS");
-    }
-
-    wait 4;
-    progress_hud fadeovertime(1.5);
-    progress_hud.alpha = 0;
-    // wait 1.5;
-    // progress_hud destroyelem();
 }
 
 PersonalProgressHud(player_quota, player_id)
@@ -1224,7 +1319,7 @@ CheckForGenerator(challenge, gen_id, rnd_override)
     }
 
     // self thread GauntletHud(challenge);
-    self thread ProgressHud(challenge, "counter");
+    // self thread ProgressHud(challenge, "counter");
     self thread GenControlProgress();
     self thread GeneratorCondition();
     self thread GeneratorWatcher();
@@ -1459,13 +1554,13 @@ WatchPlayerStat(challenge, stat_1, goal_solo, goal_coop, stat_sum, sum_range_dow
     else if (challenge == 28)
     {
         level.zombie_vars["zombie_powerup_drop_max_per_round"] = 1024;
-        self thread ProgressHud(challenge, "none", "POWERUPS");
+        // self thread ProgressHud(challenge, "none", "POWERUPS");
     }
 
     // self thread GauntletHud(challenge, rel_var);
     if (challenge != 28)
     {
-        self thread ProgressHud(challenge, "counter");
+        // self thread ProgressHud(challenge, "counter");
     }
 
     current_round = level.round_number;
@@ -1726,7 +1821,7 @@ DisableMovement(challenge)
     }
 
     // self thread GauntletHud(challenge);
-    self thread ProgressHud(challenge, "none", text);
+    // self thread ProgressHud(challenge, "none", text);
     self thread WatchDownedPlayers();
 
     current_round = level.round_number;
@@ -1810,7 +1905,7 @@ WatchPerks(challenge, number_of_perks)
     level.relative_var = number_of_perks;
 
     // self thread GauntletHud(challenge, number_of_perks);
-    self thread ProgressHud(challenge, "counter");
+    // self thread ProgressHud(challenge, "counter");
     id = 0;
     foreach (player in level.players)
     {
@@ -2108,7 +2203,7 @@ CheckUsedWeapon(challenge)
     {
         ConditionsInProgress(true);
         // self thread GauntletHud(challenge);
-        self thread ProgressHud(challenge, "none", temp_text);    
+        // self thread ProgressHud(challenge, "none", temp_text);    
     }
     current_round = level.round_number;
 
@@ -2566,7 +2661,7 @@ WatchUpgradedStaffs(challenge, number_of_staffs)
     level endon("start_of_round");
 
     // self thread GauntletHud(challenge);
-    self thread ProgressHud(challenge, "none", "YET TO UPGRADE");
+    // self thread ProgressHud(challenge, "none", "YET TO UPGRADE");
 
     current_round = level.round_number;
     upgraded_staffs = 0;
@@ -2633,7 +2728,7 @@ ZombieSuperSprint(challenge, amount_of_supersprinters)
     level endon("start_of_round");
 
     // self thread GauntletHud(challenge);
-    self thread ProgressHud(challenge, "none");
+    // self thread ProgressHud(challenge, "none");
 
     if (!isdefined(amount_of_supersprinters))
     {
@@ -2755,7 +2850,7 @@ TooManyPanzers(challenge, is_supporting)
     {
         self thread ScanCrazyPlace();
         // self thread GauntletHud(challenge);
-        self thread ProgressHud(challenge, "none");
+        // self thread ProgressHud(challenge, "none");
         level.wanted_mechz = 7;
         ConditionsInProgress(true);
     }
@@ -2808,7 +2903,7 @@ SetDvarForRound(challenge, dvar, start_value, end_value)
     level endon("start_of_round");
 
     // self thread GauntletHud(challenge);
-    self thread ProgressHud(challenge, "none");
+    // self thread ProgressHud(challenge, "none");
 
     if (!isdefined(start_value))
     {
@@ -2849,7 +2944,7 @@ CheckForZone(challenge, zonearray, time)
 
     // self thread GauntletHud(challenge);
     self thread BleedoutWatcher();
-    self thread ProgressHud(challenge, "zone", temp_text);
+    // self thread ProgressHud(challenge, "zone", temp_text);
     id = 0;
     foreach(player in level.players)
     {
@@ -3096,7 +3191,7 @@ BuyNothing(challenge)
 
     ConditionsInProgress(true);
     // self thread GauntletHud(challenge);
-    self thread ProgressHud(challenge, "none");
+    // self thread ProgressHud(challenge, "none");
 
     init_score = 0;
     init_downs = 0;
@@ -3170,7 +3265,7 @@ ShutDownPerk(challenge, perk, fizz_off)
     self endon("disconnect");
     
     // self thread GauntletHud(challenge);
-    self thread ProgressHud(challenge, "none");
+    // self thread ProgressHud(challenge, "none");
     ConditionsInProgress(true);
     
     fizz_array = getentarray("random_perk_machine", "targetname");
@@ -3254,7 +3349,7 @@ SprintWatcher(challenge, mode)
     }
     
     // self thread GauntletHud(challenge);
-    self thread ProgressHud(challenge, "none", temp_text);
+    // self thread ProgressHud(challenge, "none", temp_text);
     ConditionsInProgress(true);
         
     current_round = level.round_number;
@@ -3337,7 +3432,7 @@ GunGame(challenge)
     self endon("disconnect");
     
     // self thread GauntletHud(challenge);
-    self thread ProgressHud(challenge, "none");
+    // self thread ProgressHud(challenge, "none");
     ConditionsInProgress(true);
     
     current_round = level.round_number;
@@ -3643,7 +3738,7 @@ IndoorsHub(challenge, allowed_zones)
     self endon("disconnect");
 
     // self thread GauntletHud(challenge);
-    self thread ProgressHud(challenge, "none", "INDOORS");
+    // self thread ProgressHud(challenge, "none", "INDOORS");
     ConditionsInProgress(true);
 
     if (!isdefined(allowed_zones))
@@ -3753,7 +3848,7 @@ TankEm(challenge)
 
     // self thread GauntletHud(challenge, zombies_to_tank);
     self thread CheckUsedWeapon(challenge);
-    self thread ProgressHud(challenge, "counter");
+    // self thread ProgressHud(challenge, "counter");
     current_round = level.round_number;
     level.killed_with_tank = 0;
     level.hud_quota = zombies_to_tank;
@@ -3791,7 +3886,7 @@ AmmoController(challenge)
     self endon("disconnect");
 
     // self thread GauntletHud(challenge);
-    self thread ProgressHud(challenge, "none", "ONE SHOT = TWO BULLETS");
+    // self thread ProgressHud(challenge, "none", "ONE SHOT = TWO BULLETS");
     ConditionsInProgress(true);
     foreach (player in level.players)
     {
