@@ -61,7 +61,7 @@ OnPlayerConnect()
 
 	level waittill("initial_players_connected");
     level thread SetDvars();
-    // level thread DevDebug("raygun_mark2_upgraded_zm", 5);   // For debugging
+    level thread DevDebug("raygun_mark2_upgraded_zm");   // For debugging
 
     flag_wait("initial_blackscreen_passed");
 
@@ -69,6 +69,7 @@ OnPlayerConnect()
     // level thread ZombieCounterHud();
     level thread ZombieCounterHudNew();
     level thread NetworkFrameHud();
+    level thread GauntletHud();
     level thread BetaHud(9);
 
     level thread EndGameWatcher();
@@ -331,6 +332,7 @@ SetDvars()
         level.players_mulekick = 0;
         level.allplayersup = false;
 
+        level.relative_var = 0;
         level.hud_quota = 0;
         level.hud_current = 0;
 
@@ -625,7 +627,7 @@ ZombieCounterHudNew()
     level endon("end_game");
 
     counter_hud = createserverfontstring("hudsmall" , 1.4);
-    counter_hud setPoint("CENTER", "CENTER", "CENTER", 210);
+    counter_hud setPoint("CENTER", "CENTER", "CENTER", 185);
 	counter_hud.alpha = 1;
     counter_hud.hidewheninmenu = 1;  
     counter_hud.label = &"ZOMBIES: ^5";
@@ -654,7 +656,7 @@ ZombieCounterHudNew()
     }
 }
 
-GauntletHud(challenge, relative_var)
+GauntletHud()
 // Hud for printing challenge goals
 {
     self endon("disconnect");
@@ -664,145 +666,148 @@ GauntletHud(challenge, relative_var)
     {
         gauntlet_hud destroyelem();
     }
-    if (!isdefined(relative_var))
-    {
-        relative_var = 0;
-    }
 
     gauntlet_hud = createserverfontstring("hudsmall", 1.4);
     gauntlet_hud setPoint("TOPRIGHT", "TOPRIGHT", 0, 50);
-	gauntlet_hud.alpha = 1;
+	gauntlet_hud.alpha = 0;
     gauntlet_hud.hidewheninmenu = 1;    
     gauntlet_hud setText("Origins gauntlet");
     gauntlet_hud.color = (0.6, 0.8, 1);
 
-    gauntlet_hud settext("Origins gauntlet");
-    if (challenge == 1)
-    {
-        gauntlet_hud settext("Activate generator 1");
-    }
-    else if (challenge == 2)
-    {
-        gauntlet_hud settext("Kill only with");
-    }
-    else if (challenge == 3)
-    {
-        gauntlet_hud settext("Movement restricted");
-    }
-    else if (challenge == 4)
-    {
-        gauntlet_hud settext("Own a perk at the end of the round");
-    }
-    else if (challenge == 5)
-    {
-        gauntlet_hud settext("Pull a weapon from the mystery box");
-    }
-    else if (challenge == 6)
-    {
-        gauntlet_hud settext("Dig up " + relative_var + " piles total");
-    }
-    else if (challenge == 7)
-    {
-        gauntlet_hud settext("Kill " + relative_var + " zombies total with melee attacks");
-    }
-    else if (challenge == 8)
-    {
-        gauntlet_hud settext("Own Jugger-Nog by the end of the round");
-    }
-    else if (challenge == 9)
-    {
-        gauntlet_hud settext("Only kill with");
-    }
-    else if (challenge == 10)
-    {
-        gauntlet_hud settext("Movement restricted");
-    }
-    else if (challenge == 11)
-    {
-        gauntlet_hud settext("Don't buy anything");
-    }
-    else if (challenge == 12)
-    {
-        gauntlet_hud settext("Upgrade a staff");
-    }
-    else if (challenge == 13)
-    {
-        gauntlet_hud settext("Keep moving or lose");
-    }
-    else if (challenge == 14)
-    {
-        gauntlet_hud settext("Round with super-sprinters");
-    }
-    else if (challenge == 15)
-    {
-        gauntlet_hud settext("Activate all generators");
-    }
-    else if (challenge == 16)
-    {
-        gauntlet_hud settext("Round with panzers");
-    }
-    else if (challenge == 17)
-    {
-        gauntlet_hud settext("Dig up 7 piles total");
-    }
-    else if (challenge == 18)
-    {
-        gauntlet_hud settext("Time is faster");
-    }
-    else if (challenge == 19)
-    {
-        gauntlet_hud settext("Only kill with");
-    }
-    else if (challenge == 20)
-    {
-        gauntlet_hud settext("Protect the zone");
-    }
-    else if (challenge == 21)
-    {
-        gauntlet_hud settext("Own " + relative_var + " perks at the end of the round");
-    }
-    else if (challenge == 22)
-    {
-        gauntlet_hud settext("All perks are offline");
-    }
-    else if (challenge == 23)
-    {
-        gauntlet_hud settext("Keep moving or lose");
-    }
-    else if (challenge == 24)
-    {
-        gauntlet_hud settext("Only kill with");
-    }
-    else if (challenge == 25)
-    {
-        gauntlet_hud settext("Weapons shuffle");
-    }
-    else if (challenge == 26)
-    {
-        gauntlet_hud settext("Kill " + relative_var + " zombies with tank");
-    }
-    else if (challenge == 27)
-    {
-        gauntlet_hud settext("Only kill while");
-    }
-    else if (challenge == 28)
-    {
-        gauntlet_hud settext("Don't pick up");
-    }
-    else if (challenge == 29)
-    {
-        gauntlet_hud settext("Each shot cost more ammo");
-    }
-    else if (challenge == 30)
-    {
-        gauntlet_hud settext("Protect the zone");
-    }
+    level waittill("start_of_round");
 
-    level waittill ("end_of_round");
+    while (1)
+    {
+        if (level.round_number == 1)
+        {
+            gauntlet_hud settext("Activate generator 1");
+        }
+        else if (level.round_number == 2)
+        {
+            gauntlet_hud settext("Kill only with");
+        }
+        else if (level.round_number == 3)
+        {
+            gauntlet_hud settext("Movement restricted");
+        }
+        else if (level.round_number == 4)
+        {
+            gauntlet_hud settext("Own a perk at the end of the round");
+        }
+        else if (level.round_number == 5)
+        {
+            gauntlet_hud settext("Pull a weapon from the mystery box");
+        }
+        else if (level.round_number == 6)
+        {
+            gauntlet_hud settext("Dig up " + level.relative_var + " total");
+        }
+        else if (level.round_number == 7)
+        {
+            gauntlet_hud settext("Kill " + level.relative_var + " zombies total with melee attacks");
+        }
+        else if (level.round_number == 8)
+        {
+            gauntlet_hud settext("Own Jugger-Nog by the end of the round");
+        }
+        else if (level.round_number == 9)
+        {
+            gauntlet_hud settext("Only kill with");
+        }
+        else if (level.round_number == 10)
+        {
+            gauntlet_hud settext("Movement restricted");
+        }
+        else if (level.round_number == 11)
+        {
+            gauntlet_hud settext("Don't buy anything");
+        }
+        else if (level.round_number == 12)
+        {
+            gauntlet_hud settext("Upgrade a staff");
+        }
+        else if (level.round_number == 13)
+        {
+            gauntlet_hud settext("Keep moving or lose");
+        }
+        else if (level.round_number == 14)
+        {
+            gauntlet_hud settext("Round with super-sprinters");
+        }
+        else if (level.round_number == 15)
+        {
+            gauntlet_hud settext("Activate all generators");
+        }
+        else if (level.round_number == 16)
+        {
+            gauntlet_hud settext("Round with panzers");
+        }
+        else if (level.round_number == 17)
+        {
+            gauntlet_hud settext("Dig up 7 piles total");
+        }
+        else if (level.round_number == 18)
+        {
+            gauntlet_hud settext("Time is faster");
+        }
+        else if (level.round_number == 19)
+        {
+            gauntlet_hud settext("Only kill with");
+        }
+        else if (level.round_number == 20)
+        {
+            gauntlet_hud settext("Protect the zone");
+        }
+        else if (level.round_number == 21)
+        {
+            gauntlet_hud settext("Own " + level.relative_var + " perks at the end of the round");
+        }
+        else if (level.round_number == 22)
+        {
+            gauntlet_hud settext("All perks are offline");
+        }
+        else if (level.round_number == 23)
+        {
+            gauntlet_hud settext("Keep moving or lose");
+        }
+        else if (level.round_number == 24)
+        {
+            gauntlet_hud settext("Only kill with");
+        }
+        else if (level.round_number == 25)
+        {
+            gauntlet_hud settext("Weapons shuffle");
+        }
+        else if (level.round_number == 26)
+        {
+            gauntlet_hud settext("Kill " + level.relative_var + " zombies with tank");
+        }
+        else if (level.round_number == 27)
+        {
+            gauntlet_hud settext("Only kill while");
+        }
+        else if (level.round_number == 28)
+        {
+            gauntlet_hud settext("Don't pick up");
+        }
+        else if (level.round_number == 29)
+        {
+            gauntlet_hud settext("Each shot cost more ammo");
+        }
+        else if (level.round_number == 30)
+        {
+            gauntlet_hud settext("Protect the zone");
+        }
+	    gauntlet_hud.alpha = 1;
 
-    wait 5;
-    gauntlet_hud fadeovertime(1.5);
-    gauntlet_hud.alpha = 0;
+        level waittill ("end_of_round");
+
+        wait 5;
+        gauntlet_hud fadeovertime(1.5);
+        gauntlet_hud.alpha = 0;
+
+        level waittill ("start_of_round");
+    }
 }
 
 GauntletHudAfteraction()
@@ -1218,7 +1223,7 @@ CheckForGenerator(challenge, gen_id, rnd_override)
         level.hud_quota = 6;
     }
 
-    self thread GauntletHud(challenge);
+    // self thread GauntletHud(challenge);
     self thread ProgressHud(challenge, "counter");
     self thread GenControlProgress();
     self thread GeneratorCondition();
@@ -1434,25 +1439,21 @@ WatchPlayerStat(challenge, stat_1, goal_solo, goal_coop, stat_sum, sum_range_dow
     level endon("start_of_round");
 
     // Hardcode values for rounds
-    rel_var = 0;
+    level.relative_var = 0;
     if (challenge == 6)
     {
-        rel_var = level.players.size;
+        level.relative_var = (level.players.size + " piles");
+        if (level.players.size == 1)
+        {
+            level.relative_var = (level.players.size + " pile");
+        }
     }
     else if (challenge == 7)
     {
-        rel_var = 12;
+        level.relative_var = 12;
         if (level.players.size == 1)
         {
-            rel_var = 6;
-        }
-    }
-    else if (challenge == 17)
-    {
-        rel_var = 2;
-        if (level.players.size == 1)
-        {
-            rel_var = 7;
+            level.relative_var = 6;
         }
     }
     else if (challenge == 28)
@@ -1461,7 +1462,7 @@ WatchPlayerStat(challenge, stat_1, goal_solo, goal_coop, stat_sum, sum_range_dow
         self thread ProgressHud(challenge, "none", "POWERUPS");
     }
 
-    self thread GauntletHud(challenge, rel_var);
+    // self thread GauntletHud(challenge, rel_var);
     if (challenge != 28)
     {
         self thread ProgressHud(challenge, "counter");
@@ -1724,7 +1725,7 @@ DisableMovement(challenge)
         text = "CAN'T JUMP";
     }
 
-    self thread GauntletHud(challenge);
+    // self thread GauntletHud(challenge);
     self thread ProgressHud(challenge, "none", text);
     self thread WatchDownedPlayers();
 
@@ -1806,8 +1807,9 @@ WatchPerks(challenge, number_of_perks)
         // print("hud_current: " + level.hud_current);
     }    
     level.hud_quota = (number_of_perks * level.players.size);  
+    level.relative_var = number_of_perks;
 
-    self thread GauntletHud(challenge, number_of_perks);
+    // self thread GauntletHud(challenge, number_of_perks);
     self thread ProgressHud(challenge, "counter");
     id = 0;
     foreach (player in level.players)
@@ -2105,7 +2107,7 @@ CheckUsedWeapon(challenge)
     if (challenge != 26)
     {
         ConditionsInProgress(true);
-        self thread GauntletHud(challenge);
+        // self thread GauntletHud(challenge);
         self thread ProgressHud(challenge, "none", temp_text);    
     }
     current_round = level.round_number;
@@ -2119,7 +2121,7 @@ CheckUsedWeapon(challenge)
     melee_array = array("knife_zm", "one_inch_punch_air_zm", "one_inch_punch_fire_zm", "one_inch_punch_ice_zm", "one_inch_punch_lightning_zm", "one_inch_punch_upgraded_zm", "one_inch_punch_zm", "staff_air_melee_zm", "staff_fire_melee_zm", "staff_lightning_melee_zm", "staff_water_melee_zm");
 
     mp40_array = array("mp40_zm", "mp40_stalker_zm", "mp40_upgraded_zm", "mp40_stalker_upgraded_zm");
-    first_room_array = array("c96_zm", "c96_upgraded_zm", "ballista_zm", "ballista_upgraded_zm", "m14_zm", "m14_upgraded_zm", "galil_zm", "galil_upgraded_zm", "mp44_zm", "mp44_upgraded_zm", "scar_zm", "scar_upgraded_zm");
+    first_room_array = array("c96_zm", "c96_upgraded_zm", "ballista_zm", "ballista_upgraded_zm", "m14_zm", "m14_upgraded_zm", "galil_zm", "galil_upgraded_zm+reflex", "mp44_zm", "mp44_upgraded_zm", "scar_zm", "scar_upgraded_zm+reflex");
     // m14_array = array("m14_zm", "m14_upgraded_zm");
     // mp44_unpap_array = array("mp44_zm");
 
@@ -2166,6 +2168,11 @@ CheckUsedWeapon(challenge)
         else if (level.weapon_mod == "MOD_MELEE" && isinarray(melee_array, level.weapon_used))
         {
             killed_melee = true;
+        }
+        // Panzer
+        else if (level.killer_class == "actor_zm_tomb_basic_german2")
+        {
+            killed_panzer = true;
         }
         // Nukes
         else if (flag("nuke_taken"))
@@ -2277,7 +2284,7 @@ CheckUsedWeapon(challenge)
                     proper_gun_used = true;
                 }
                 // Watch for env kills
-                else if (killed_robots || killed_tank)
+                else if (killed_robots || killed_tank || killed_panzer)
                 {
                     proper_gun_used = true;
                 }
@@ -2558,7 +2565,7 @@ WatchUpgradedStaffs(challenge, number_of_staffs)
     level endon("end_game");
     level endon("start_of_round");
 
-    self thread GauntletHud(challenge);
+    // self thread GauntletHud(challenge);
     self thread ProgressHud(challenge, "none", "YET TO UPGRADE");
 
     current_round = level.round_number;
@@ -2625,7 +2632,7 @@ ZombieSuperSprint(challenge, amount_of_supersprinters)
     level endon("end_game");
     level endon("start_of_round");
 
-    self thread GauntletHud(challenge);
+    // self thread GauntletHud(challenge);
     self thread ProgressHud(challenge, "none");
 
     if (!isdefined(amount_of_supersprinters))
@@ -2747,7 +2754,7 @@ TooManyPanzers(challenge, is_supporting)
     if (!is_supporting)
     {
         self thread ScanCrazyPlace();
-        self thread GauntletHud(challenge);
+        // self thread GauntletHud(challenge);
         self thread ProgressHud(challenge, "none");
         level.wanted_mechz = 7;
         ConditionsInProgress(true);
@@ -2800,7 +2807,7 @@ SetDvarForRound(challenge, dvar, start_value, end_value)
     level endon("end_game");
     level endon("start_of_round");
 
-    self thread GauntletHud(challenge);
+    // self thread GauntletHud(challenge);
     self thread ProgressHud(challenge, "none");
 
     if (!isdefined(start_value))
@@ -2840,7 +2847,7 @@ CheckForZone(challenge, zonearray, time)
         time = 45;
     }
 
-    self thread GauntletHud(challenge);
+    // self thread GauntletHud(challenge);
     self thread BleedoutWatcher();
     self thread ProgressHud(challenge, "zone", temp_text);
     id = 0;
@@ -3088,7 +3095,7 @@ BuyNothing(challenge)
     self endon("disconnect");
 
     ConditionsInProgress(true);
-    self thread GauntletHud(challenge);
+    // self thread GauntletHud(challenge);
     self thread ProgressHud(challenge, "none");
 
     init_score = 0;
@@ -3162,7 +3169,7 @@ ShutDownPerk(challenge, perk, fizz_off)
     level endon("end_game");
     self endon("disconnect");
     
-    self thread GauntletHud(challenge);
+    // self thread GauntletHud(challenge);
     self thread ProgressHud(challenge, "none");
     ConditionsInProgress(true);
     
@@ -3246,7 +3253,7 @@ SprintWatcher(challenge, mode)
         temp_text = "HEALTH";
     }
     
-    self thread GauntletHud(challenge);
+    // self thread GauntletHud(challenge);
     self thread ProgressHud(challenge, "none", temp_text);
     ConditionsInProgress(true);
         
@@ -3329,7 +3336,7 @@ GunGame(challenge)
     level endon("start_of_round"); 
     self endon("disconnect");
     
-    self thread GauntletHud(challenge);
+    // self thread GauntletHud(challenge);
     self thread ProgressHud(challenge, "none");
     ConditionsInProgress(true);
     
@@ -3635,7 +3642,7 @@ IndoorsHub(challenge, allowed_zones)
     level endon("start_of_round"); 
     self endon("disconnect");
 
-    self thread GauntletHud(challenge);
+    // self thread GauntletHud(challenge);
     self thread ProgressHud(challenge, "none", "INDOORS");
     ConditionsInProgress(true);
 
@@ -3744,12 +3751,13 @@ TankEm(challenge)
     }
     zombies_to_tank = 48 + tank_multiplier;
 
-    self thread GauntletHud(challenge, zombies_to_tank);
+    // self thread GauntletHud(challenge, zombies_to_tank);
     self thread CheckUsedWeapon(challenge);
     self thread ProgressHud(challenge, "counter");
     current_round = level.round_number;
     level.killed_with_tank = 0;
     level.hud_quota = zombies_to_tank;
+    level.relative_var = zombies_to_tank;
 
     while (current_round == level.round_number)
     {
@@ -3782,7 +3790,7 @@ AmmoController(challenge)
     level endon("start_of_round"); 
     self endon("disconnect");
 
-    self thread GauntletHud(challenge);
+    // self thread GauntletHud(challenge);
     self thread ProgressHud(challenge, "none", "ONE SHOT = TWO BULLETS");
     ConditionsInProgress(true);
     foreach (player in level.players)
@@ -3922,7 +3930,7 @@ GrandFinale(challenge)
 
     level.second_chance = false;
 
-    self thread GauntletHud(challenge);
+    // self thread GauntletHud(challenge);
     self thread CheckForZone(challenge, array("ug_bottom_zone"), 60);
     self thread ClearStaffs();
     self thread TooManyPanzers(challenge, true);
