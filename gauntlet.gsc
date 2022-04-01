@@ -61,12 +61,11 @@ OnPlayerConnect()
 
 	level waittill("initial_players_connected");
     level thread SetDvars();
-    level thread DevDebug("raygun_mark2_upgraded_zm", 2);   // For debugging
+    level thread DevDebug("raygun_mark2_upgraded_zm", 9);   // For debugging
 
     flag_wait("initial_blackscreen_passed");
 
     level thread TimerHud();
-    // level thread ZombieCounterHud();
     level thread ZombieCounterHudNew();
     level thread NetworkFrameHud();
     level thread GauntletHud();
@@ -684,12 +683,12 @@ GauntletHud()
     {
         if (!isdefined(level.relative_var) || level.relative_var == 0)
         {
-            if (isdefined(level.debug_weapons) && level.debug_weapons)
-            {
-                iPrintLn("relative_var issue");
-            }
-            wait 0.1;
-            continue;
+            // if (isdefined(level.debug_weapons) && level.debug_weapons)
+            // {
+            //     iPrintLn("relative_var issue");
+            // }
+            // wait 0.1;
+            // continue;
         }
 
         multiples = "s";
@@ -827,19 +826,6 @@ GauntletHud()
         gauntlet_hud.alpha = 0;
 
         level waittill ("start_of_round");
-    }
-}
-
-GauntletHudAfteraction()
-// Function changes the color of challenge hud after the round is over
-{
-    if (level.conditions_met)
-    {
-        return (0.4, 0.7, 1);
-    }
-    else
-    {
-        return (1, 0.7, 0.4);
     }
 }
 
@@ -1329,8 +1315,6 @@ CheckForGenerator(challenge, gen_id)
         level.hud_quota = 6;
     }
 
-    // self thread GauntletHud(challenge);
-    // self thread ProgressHud(challenge, "counter");
     self thread GenControlProgress(current_round, gen_id);
     self thread GeneratorCondition(current_round, gen_id);
     self thread GeneratorWatcher(current_round);
@@ -1560,13 +1544,6 @@ WatchPlayerStat(challenge, stat_1, goal_solo, goal_coop, stat_sum, sum_range_dow
     else if (challenge == 28)
     {
         level.zombie_vars["zombie_powerup_drop_max_per_round"] = 1024;
-        // self thread ProgressHud(challenge, "none", "POWERUPS");
-    }
-
-    // self thread GauntletHud(challenge, rel_var);
-    if (challenge != 28)
-    {
-        // self thread ProgressHud(challenge, "counter");
     }
 
     current_round = level.round_number;
@@ -1826,8 +1803,6 @@ DisableMovement(challenge)
         text = "CAN'T JUMP";
     }
 
-    // self thread GauntletHud(challenge);
-    // self thread ProgressHud(challenge, "none", text);
     self thread WatchDownedPlayers();
 
     current_round = level.round_number;
@@ -1910,8 +1885,6 @@ WatchPerks(challenge, number_of_perks)
     level.hud_quota = (number_of_perks * level.players.size);  
     level.relative_var = number_of_perks;
 
-    // self thread GauntletHud(challenge, number_of_perks);
-    // self thread ProgressHud(challenge, "counter");
     id = 0;
     foreach (player in level.players)
     {
@@ -2192,29 +2165,13 @@ CheckUsedWeapon(challenge)
     level endon("end_game");
     level endon("start_of_round");
 
-    if (challenge == 2)
-    {
-        temp_text = "MELEE WEAPONS";
-    }
-    else if (challenge == 9 || challenge == 19)
-    {
-        temp_text = "MP-40";
-    }
-    else if (challenge == 24)
-    {
-        temp_text = "FIRST ROOM WEAPONS";
-    }
-
     if (challenge != 26)
     {
         ConditionsInProgress(true);
-        // self thread GauntletHud(challenge);
-        // self thread ProgressHud(challenge, "none", temp_text);    
     }
     current_round = level.round_number;
 
-    // Prevent instant game overs
-    wait 2;
+    wait 2;             // Prevent instant game overs
     gun_mods_array = array("MOD_RIFLE_BULLET", "MOD_PISTOL_BULLET", "MOD_PROJECTILE_SPLASH", "MOD_PROJECTILE", "MOD_MELEE");
     robot_array = array("actor_zm_tomb_giant_robot_0", "actor_zm_tomb_giant_robot_1", "actor_zm_tomb_giant_robot_2");
     lethal_array = array("claymore_zm", "frag_grenade_zm", "sticky_grenade_zm", "cymbal_monkey_zm", "beacon_zm");
@@ -2242,6 +2199,12 @@ CheckUsedWeapon(challenge)
         killed_shield = false;          // Shield
         killed_melee = false;           // Melee weapons
         killed_nuke = false;            // Nukes
+        killed_panzer = false;          // Panzers
+
+        if (isdefined(level.debug_weapons) && level.debug_weapons)
+        {
+            // iPrintLn("weapon_used_beg: " + level.weapon_used);
+        }
 
         // DEFINE MURDER WEAPON
 
@@ -2328,7 +2291,8 @@ CheckUsedWeapon(challenge)
                     proper_gun_used = true;
                 }
             }
-            if (challenge == 26)
+            // CASE = TANK
+            else if (challenge == 26)
             {
                 if (killed_tank)
                 {
@@ -2347,9 +2311,14 @@ CheckUsedWeapon(challenge)
                 {
                     allowed_weapons = array_copy(first_room_array);
                 }
+                else            // Failsafe, should never trigger
+                {
+                    iPrintLn("FATAL ERROR");
+                    break;
+                }
 
                 // Define if proper gun was used
-                if (isdefined(allowed_weapons) && isinarray(allowed_weapons, level.weapon_used))
+                if (isdefined(allowed_weapons) && isdefined(level.weapon_used) && isinarray(allowed_weapons, level.weapon_used))
                 {
                     proper_gun_used = true;
                 }
@@ -2411,6 +2380,7 @@ CheckUsedWeapon(challenge)
             print("killed_shield: " + killed_shield);
             print("killed_melee: " + killed_melee);
             print("killed_nuke: " + killed_nuke);
+            print("killed_panzer: " + killed_panzer);
 
             if (killed_insta)
             {
@@ -2456,21 +2426,23 @@ CheckUsedWeapon(challenge)
             else if (!isdefined(level.weapon_used) || !isdefined(level.killer_class) || !isdefined(level.weapon_mod))
             {
                 iPrintLn("^3Arguments undefined");
-                print("Killer: " + level.killer_class);
+                print("Killer class: " + level.killer_class);
+                print("Killer name: " + level.killer_name);
                 print("Kill mod: " + level.weapon_mod);
                 print("Kill weapon: " + level.weapon_used);
             }
             else
             {
                 iPrintLn("^1Kill: " + level.weapon_used);
-                print("Killer: " + level.killer_class);
+                print("Killer_class: " + level.killer_class);
+                print("Killer name: " + level.killer_name);
                 print("Kill mod: " + level.weapon_mod);
                 print("Kill weapon: " + level.weapon_used);
             }
         }
 
         // END GAME IF CONDITION NOT MET
-        if ((!proper_gun_used && current_round == level.round_number) && (challenge != 26))
+        if ((!proper_gun_used && (current_round == level.round_number)) && (challenge != 26))
         {
             level.forbidden_weapon_used = true;
         }
@@ -2601,15 +2573,15 @@ actor_killed_override( einflictor, attacker, idamage, smeansofdeath, sweapon, vd
     level notify ("zombie_killed");
     if (isdefined(level.debug_weapons) && level.debug_weapons)
     {    
-        print("einflictor: " + einflictor);
-        print("attacker: " + attacker.classname);   
-        print("attacker_name: " + attacker.name); 
-        print("idamage: " + idamage);
-        print("smeansofdeath: " + smeansofdeath);
-        print("sweapon: " + sweapon);
-        print("vdir: " + vdir);
-        print("shitloc: " + shitloc);
-        print("psoffsettime: " + psoffsettime);
+        // print("einflictor: " + einflictor);
+        // print("attacker: " + attacker.classname);   
+        // print("attacker_name: " + attacker.name); 
+        // print("idamage: " + idamage);
+        // print("smeansofdeath: " + smeansofdeath);
+        // print("sweapon: " + sweapon);
+        // print("vdir: " + vdir);
+        // print("shitloc: " + shitloc);
+        // print("psoffsettime: " + psoffsettime);
     }
 
     if ( game["state"] == "postgame" )
@@ -2665,9 +2637,6 @@ WatchUpgradedStaffs(challenge, number_of_staffs)
 {
     level endon("end_game");
     level endon("start_of_round");
-
-    // self thread GauntletHud(challenge);
-    // self thread ProgressHud(challenge, "none", "YET TO UPGRADE");
 
     current_round = level.round_number;
     upgraded_staffs = 0;
@@ -2732,9 +2701,6 @@ ZombieSuperSprint(challenge, amount_of_supersprinters)
 {
     level endon("end_game");
     level endon("start_of_round");
-
-    // self thread GauntletHud(challenge);
-    // self thread ProgressHud(challenge, "none");
 
     if (!isdefined(amount_of_supersprinters))
     {
@@ -2855,8 +2821,6 @@ TooManyPanzers(challenge, is_supporting)
     if (!is_supporting)
     {
         self thread ScanCrazyPlace();
-        // self thread GauntletHud(challenge);
-        // self thread ProgressHud(challenge, "none");
         level.wanted_mechz = 7;
         ConditionsInProgress(true);
     }
@@ -2908,9 +2872,6 @@ SetDvarForRound(challenge, dvar, start_value, end_value)
     level endon("end_game");
     level endon("start_of_round");
 
-    // self thread GauntletHud(challenge);
-    // self thread ProgressHud(challenge, "none");
-
     if (!isdefined(start_value))
     {
         start_value = 0;
@@ -2948,9 +2909,7 @@ CheckForZone(challenge, zonearray, time)
         time = 45;
     }
 
-    // self thread GauntletHud(challenge);
     self thread BleedoutWatcher();
-    // self thread ProgressHud(challenge, "zone", temp_text);
     id = 0;
     foreach(player in level.players)
     {
@@ -3196,8 +3155,6 @@ BuyNothing(challenge)
     self endon("disconnect");
 
     ConditionsInProgress(true);
-    // self thread GauntletHud(challenge);
-    // self thread ProgressHud(challenge, "none");
 
     init_score = 0;
     init_downs = 0;
@@ -3270,8 +3227,6 @@ ShutDownPerk(challenge, perk, fizz_off)
     level endon("end_game");
     self endon("disconnect");
     
-    // self thread GauntletHud(challenge);
-    // self thread ProgressHud(challenge, "none");
     ConditionsInProgress(true);
     
     fizz_array = getentarray("random_perk_machine", "targetname");
@@ -3354,8 +3309,6 @@ SprintWatcher(challenge, mode)
         temp_text = "HEALTH";
     }
     
-    // self thread GauntletHud(challenge);
-    // self thread ProgressHud(challenge, "none", temp_text);
     ConditionsInProgress(true);
         
     current_round = level.round_number;
@@ -3437,8 +3390,6 @@ GunGame(challenge)
     level endon("start_of_round"); 
     self endon("disconnect");
     
-    // self thread GauntletHud(challenge);
-    // self thread ProgressHud(challenge, "none");
     ConditionsInProgress(true);
     
     current_round = level.round_number;
@@ -3743,8 +3694,6 @@ IndoorsHub(challenge, allowed_zones)
     level endon("start_of_round"); 
     self endon("disconnect");
 
-    // self thread GauntletHud(challenge);
-    // self thread ProgressHud(challenge, "none", "INDOORS");
     ConditionsInProgress(true);
 
     if (!isdefined(allowed_zones))
@@ -3852,9 +3801,7 @@ TankEm(challenge)
     }
     zombies_to_tank = 48 + tank_multiplier;
 
-    // self thread GauntletHud(challenge, zombies_to_tank);
     self thread CheckUsedWeapon(challenge);
-    // self thread ProgressHud(challenge, "counter");
     current_round = level.round_number;
     level.killed_with_tank = 0;
     level.hud_quota = zombies_to_tank;
@@ -3891,8 +3838,6 @@ AmmoController(challenge)
     level endon("start_of_round"); 
     self endon("disconnect");
 
-    // self thread GauntletHud(challenge);
-    // self thread ProgressHud(challenge, "none", "ONE SHOT = TWO BULLETS");
     ConditionsInProgress(true);
     foreach (player in level.players)
     {
@@ -4031,7 +3976,6 @@ GrandFinale(challenge)
 
     level.second_chance = false;
 
-    // self thread GauntletHud(challenge);
     self thread CheckForZone(challenge, array("ug_bottom_zone"), 60);
     self thread ClearStaffs();
     self thread TooManyPanzers(challenge, true);
