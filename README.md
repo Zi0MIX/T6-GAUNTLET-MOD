@@ -18,7 +18,7 @@ Patch that emulates gauntlet gamemode from BO4 on BO2 Origins
 14. Survive round with super-sprinters.
 15. Activate all generators.
 16. Survive round with panzers.
-17. Solo - Dig up 7 piles / Coop - Dig up 2 piles.
+17. Dig up total of 7 piles.
 18. Time is faster.
 19. Only kill with MP-40.
 20. Protect church.

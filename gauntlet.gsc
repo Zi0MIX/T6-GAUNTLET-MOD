@@ -61,7 +61,7 @@ OnPlayerConnect()
 
 	level waittill("initial_players_connected");
     level thread SetDvars();
-    level thread DevDebug("raygun_mark2_upgraded_zm", 9);   // For debugging
+    // level thread DevDebug("raygun_mark2_upgraded_zm", 9);   // For debugging
 
     flag_wait("initial_blackscreen_passed");
 
@@ -676,19 +676,14 @@ GauntletHud()
     gauntlet_hud setText("Origins gauntlet");
     gauntlet_hud.color = (0.6, 0.8, 1);
 
-    level.relative_var = 0;
     level waittill("start_of_round");
 
     while (1)
     {
-        if (!isdefined(level.relative_var) || level.relative_var == 0)
+        relative_var = SetRelativeVar(level.round_number);
+        if (!isdefined(relative_var) || relative_var == 0)
         {
-            // if (isdefined(level.debug_weapons) && level.debug_weapons)
-            // {
-            //     iPrintLn("relative_var issue");
-            // }
-            // wait 0.1;
-            // continue;
+
         }
 
         multiples = "s";
@@ -719,11 +714,11 @@ GauntletHud()
         }
         else if (level.round_number == 6)
         {
-            gauntlet_hud settext("Dig up " + level.relative_var + " pile" + multiples + " total");
+            gauntlet_hud settext("Dig up " + relative_var + " pile" + multiples + " total");
         }
         else if (level.round_number == 7)
         {
-            gauntlet_hud settext("Kill " + level.relative_var + " zombies total with melee attacks");
+            gauntlet_hud settext("Kill " + relative_var + " zombies total with melee attacks");
         }
         else if (level.round_number == 8)
         {
@@ -779,7 +774,7 @@ GauntletHud()
         }
         else if (level.round_number == 21)
         {
-            gauntlet_hud settext("Own " + level.relative_var + " perks at the end of the round");
+            gauntlet_hud settext("Own " + relative_var + " perks at the end of the round");
         }
         else if (level.round_number == 22)
         {
@@ -799,7 +794,7 @@ GauntletHud()
         }
         else if (level.round_number == 26)
         {
-            gauntlet_hud settext("Kill " + level.relative_var + " zombies with tank");
+            gauntlet_hud settext("Kill " + relative_var + " zombies with tank");
         }
         else if (level.round_number == 27)
         {
@@ -849,7 +844,7 @@ ProgressHud()
     self.progress_hud setText("Origins gauntlet");
     self.progress_hud.color = (1, 0.7, 0.4);
 
-    mode_counter = array(1, 4, 8, 5, 6, 7, 17, 21, 26);
+    mode_counter = array(1, 4, 8, 5, 6, 7, 15, 17, 21, 26);
     mode_zone = array(20, 30);
 
     while (1)
@@ -938,11 +933,11 @@ ProgressHud()
         level waittill("end_of_round");
 
         wait 1;
-        self.progress_hud.color = (1, 0.7, 0.4);                     // Orange
+        self.progress_hud.color = (1, 0.7, 0.4);                // Orange
         // If statement deals with challenges that tick at the end of round
         if (level.conditions_met)
         {
-            self.progress_hud.color = (0.4, 0.7, 1);                 // Blue
+            self.progress_hud.color = (0.4, 0.7, 1);            // Blue
             self.progress_hud setText("SUCCESS");
         }
         wait 4;
@@ -950,8 +945,6 @@ ProgressHud()
         self.progress_hud.alpha = 0;
 
         level waittill("start_of_round");
-        // wait 1.5;
-        // progress_hud destroyelem();
     }
 }
 
@@ -1087,10 +1080,10 @@ PersonalProgressHud(player_quota, player_id)
         wait 0.05;
     }
     wait 1;
-    personal_hud.color = (1, 0.7, 0.4);                    // Orange
+    personal_hud.color = (1, 0.7, 0.4);                     // Orange
     if (level.conditions_met)
     {
-        personal_hud.color = (0.4, 0.7, 1);                // Blue
+        personal_hud.color = (0.4, 0.7, 1);                 // Blue
     }
 
     wait 4;
@@ -1227,46 +1220,6 @@ CustomEndScreen()
     win_hud2.alpha = 1;  
 }
 
-NetworkFrameHud()
-// Print network frame - forked from FR fix
-{
-	network_hud = newHudElem();
-	network_hud.alignx = "center";
-	network_hud.aligny = "top";
-	network_hud.horzalign = "user_center";
-	network_hud.vertalign = "user_top";
-	network_hud.x += 0;
-	network_hud.y += 2;
-	network_hud.fontscale = 1.2;
-	network_hud.alpha = 0;
-	network_hud.color = ( 1, 1, 1 );
-	network_hud.hidewheninmenu = 1;
-	network_hud.label = &"Network frame check: ^1";
-
-	flag_wait( "initial_blackscreen_passed" );
-
-	start_time = int(getTime());
-	wait_network_frame();
-	end_time = int(getTime());
-	network_frame_len = float((end_time - start_time) / 1000);
-
-	if (network_frame_len == 0.1)
-	{
-		network_hud.label = &"Network frame check: ^2";
-	}
-	
-	network_hud.alpha = 1;
-	network_hud setValue(network_frame_len);
-
-	wait 3;
-	network_hud.alpha = 0;
-    if (network_frame_len != 0.1)
-    {
-        iPrintLn("^0TICKRATE ERROR");
-        EndGame();
-    }
-}
-
 SecondChanceHud(team_size)
 {
     self endon("disconnect");
@@ -1300,6 +1253,42 @@ BetaHud(beta_version)
 	counter_hud.alpha = 0.3;
     counter_hud.label = &"^4BETA V";
     counter_hud setValue(beta_version); 
+}
+
+SetRelativeVar(rnd)
+// Return hardcoded relative variables for gauntlet hud
+{
+    if (rnd == 6)
+    {
+        return level.players.size;
+    }
+    else if (rnd == 7)
+    {
+        if (level.players.size == 1)
+        {
+            return 6;
+        }
+        return 12;
+    }
+    else if (rnd == 21)
+    {
+        if (level.players.size > 4)
+        {
+            return 4;
+        }
+        return 5;
+    }
+    else if (rnd == 26)
+    {
+        temp_tank = 24 + (level.players.size * 24);
+        if (temp_tank > 120)
+        {
+            temp_tank = 120;
+        }
+        return temp_tank;
+    }
+
+    return 0;
 }
 
 CheckForGenerator(challenge, gen_id)
@@ -1529,19 +1518,7 @@ WatchPlayerStat(challenge, stat_1, goal_solo, goal_coop, stat_sum, sum_range_dow
     level endon("start_of_round");
 
     // Hardcode values for rounds
-    if (challenge == 6)
-    {
-        level.relative_var = level.players.size;
-    }
-    else if (challenge == 7)
-    {
-        level.relative_var = 12;
-        if (level.players.size == 1)
-        {
-            level.relative_var = 6;
-        }
-    }
-    else if (challenge == 28)
+    if (challenge == 28)
     {
         level.zombie_vars["zombie_powerup_drop_max_per_round"] = 1024;
     }
@@ -1883,7 +1860,6 @@ WatchPerks(challenge, number_of_perks)
         // print("hud_current: " + level.hud_current);
     }    
     level.hud_quota = (number_of_perks * level.players.size);  
-    level.relative_var = number_of_perks;
 
     id = 0;
     foreach (player in level.players)
@@ -3478,7 +3454,7 @@ GunGame(challenge)
         // Return 1st weapon
         if (isdefined(player.stolen_weapon_1))
         {
-            player giveweapon(player.stolen_weapon_1);
+            player giveweapon(player.stolen_weapon_1, player get_pack_a_punch_weapon_options(player.stolen_weapon_1));
             player switchtoweapon(player.stolen_weapon_1);
             player setweaponammostock(player.stolen_weapon_1, player.stolen_ammo_1);
             player setweaponammoclip(player.stolen_weapon_1, player.stolen_clip_1);
@@ -3495,14 +3471,14 @@ GunGame(challenge)
         // Return 2nd wepaon
         if (!skip_other && player.stolen_weapons >= 2)
         {
-            player giveweapon(player.stolen_weapon_2);
+            player giveweapon(player.stolen_weapon_2, player get_pack_a_punch_weapon_options(player.stolen_weapon_2));
             player setweaponammostock(player.stolen_weapon_2, player.stolen_ammo_2);
             player setweaponammoclip(player.stolen_weapon_2, player.stolen_clip_2);
 
             // Return 3rd weapon if player has mulekick
             if (player.stolen_weapons == 3 && isdefined(player.stolen_mule_weapon) && player hasperk("specialty_additionalprimaryweapon"))
             {
-                player giveweapon(player.stolen_mule_weapon);
+                player giveweapon(player.stolen_mule_weapon, player get_pack_a_punch_weapon_options(player.stolen_mule_weapon));
                 player setweaponammostock(player.stolen_mule_weapon, player.stolen_mule_ammo);
                 player setweaponammoclip(player.stolen_mule_weapon, player.stolen_mule_clip);
             }
@@ -3805,7 +3781,6 @@ TankEm(challenge)
     current_round = level.round_number;
     level.killed_with_tank = 0;
     level.hud_quota = zombies_to_tank;
-    level.relative_var = zombies_to_tank;
 
     while (current_round == level.round_number)
     {
