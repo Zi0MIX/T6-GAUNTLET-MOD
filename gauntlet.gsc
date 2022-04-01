@@ -61,7 +61,7 @@ OnPlayerConnect()
 
 	level waittill("initial_players_connected");
     level thread SetDvars();
-    level thread DevDebug("raygun_mark2_upgraded_zm", 5);   // For debugging
+    // level thread DevDebug("raygun_mark2_upgraded_zm", 5);   // For debugging
 
     flag_wait("initial_blackscreen_passed");
 
@@ -537,7 +537,8 @@ GameRules()
         level waittill ("start_of_round");
         wait 15;
 
-        // Predefine weather between round 6-12
+        // Predefine weather between round 5-12
+        level.force_weather[5] = "rain";
         level.force_weather[6] = "snow";
         level.force_weather[7] = "snow";
         level.force_weather[8] = "clear";

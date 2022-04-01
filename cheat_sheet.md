@@ -46,6 +46,7 @@ Amount of perks reduced to 4
 - Generator rounds: 10, 14, 18, 23, 26
 ### Weather
 Weather is predefined for rounds 6-12
+- Round 5 - Rain
 - Round 6 & 7 - Snow
 - Round 8 - Clear
 - Round 9 - Rain
