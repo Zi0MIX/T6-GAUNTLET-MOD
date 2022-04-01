@@ -61,7 +61,7 @@ OnPlayerConnect()
 
 	level waittill("initial_players_connected");
     level thread SetDvars();
-    level thread DevDebug("raygun_mark2_upgraded_zm");   // For debugging
+    level thread DevDebug("raygun_mark2_upgraded_zm", 2);   // For debugging
 
     flag_wait("initial_blackscreen_passed");
 
@@ -89,7 +89,7 @@ OnPlayerConnect()
         // Activate generator 1
         if (level.round_number == 1)
         {
-            level thread CheckForGenerator(1, 1, 1);
+            level thread CheckForGenerator(1, 1);
         }
 
         // Only kill with melee (except for shield)
@@ -336,7 +336,6 @@ SetDvars()
         level.players_mulekick = 0;
         level.allplayersup = false;
 
-        level.relative_var = 0;
         // level.hud_quota = 0;
         // level.hud_current = 0;
 
@@ -678,10 +677,27 @@ GauntletHud()
     gauntlet_hud setText("Origins gauntlet");
     gauntlet_hud.color = (0.6, 0.8, 1);
 
+    level.relative_var = 0;
     level waittill("start_of_round");
 
     while (1)
     {
+        if (!isdefined(level.relative_var) || level.relative_var == 0)
+        {
+            if (isdefined(level.debug_weapons) && level.debug_weapons)
+            {
+                iPrintLn("relative_var issue");
+            }
+            wait 0.1;
+            continue;
+        }
+
+        multiples = "s";
+        if (level.players.size == 1)
+        {
+            multiples = "";
+        }
+        
         if (level.round_number == 1)
         {
             gauntlet_hud settext("Activate generator 1");
@@ -704,7 +720,7 @@ GauntletHud()
         }
         else if (level.round_number == 6)
         {
-            gauntlet_hud settext("Dig up " + level.relative_var + " total");
+            gauntlet_hud settext("Dig up " + level.relative_var + " pile" + multiples + " total");
         }
         else if (level.round_number == 7)
         {
@@ -1300,18 +1316,13 @@ BetaHud(beta_version)
     counter_hud setValue(beta_version); 
 }
 
-CheckForGenerator(challenge, gen_id, rnd_override)
+CheckForGenerator(challenge, gen_id)
 // Master function for checking generators. Pass 0 as gen_id to verify all gens
 {
     level endon("end_game");
     level endon("start_of_round");
 
-    self.current_round = level.round_number;
-    if (isdefined(rnd_override))
-    {
-        self.current_round = rnd_override;
-    }
-    self.generator_id = gen_id;
+    current_round = level.round_number;
     level.hud_quota = 1;
     if (gen_id == 0)
     {
@@ -1320,47 +1331,47 @@ CheckForGenerator(challenge, gen_id, rnd_override)
 
     // self thread GauntletHud(challenge);
     // self thread ProgressHud(challenge, "counter");
-    self thread GenControlProgress();
-    self thread GeneratorCondition();
-    self thread GeneratorWatcher();
+    self thread GenControlProgress(current_round, gen_id);
+    self thread GeneratorCondition(current_round, gen_id);
+    self thread GeneratorWatcher(current_round);
 }
 
-GeneratorCondition()
+GeneratorCondition(current_round, generator_id)
 // Function will change boolean if defined generator is taken
 {
-    while (self.current_round == level.round_number)
+    while (current_round == level.round_number)
     {
-        if (level.active_gen_1 && self.generator_id == 1)
+        if (level.active_gen_1 && generator_id == 1)
         {
             ConditionsMet(true);
         }
 
-        else if (level.active_gen_2 && self.generator_id == 2)
+        else if (level.active_gen_2 && generator_id == 2)
         {
             ConditionsMet(true);
         }
 
-        else if (level.active_gen_3 && self.generator_id == 3)
+        else if (level.active_gen_3 && generator_id == 3)
         {
             ConditionsMet(true);
         }
 
-        else if (level.active_gen_4 && self.generator_id == 4)
+        else if (level.active_gen_4 && generator_id == 4)
         {
             ConditionsMet(true);
         }
 
-        else if (level.active_gen_5 && self.generator_id == 5)
+        else if (level.active_gen_5 && generator_id == 5)
         {
             ConditionsMet(true);
         }
 
-        else if (level.active_gen_6 && self.generator_id == 6)
+        else if (level.active_gen_6 && generator_id == 6)
         {
             ConditionsMet(true);
         }
 
-        else if (self.generator_id == 0)
+        else if (generator_id == 0)
         {
             if (level.active_gen_1 && level.active_gen_2 && level.active_gen_3 && level.active_gen_4 && level.active_gen_5 && level.active_gen_6)
             {
@@ -1394,10 +1405,10 @@ GeneratorCondition()
     }
 }
 
-GeneratorWatcher()
+GeneratorWatcher(current_round)
 // Function watches for current state of gens and changing booleans accordingly
 {
-    while (self.current_round == level.round_number)
+    while (current_round == level.round_number)
     {
         if (level.zone_capture.zones["generator_start_bunker"]ent_flag("player_controlled"))
         {
@@ -1457,12 +1468,12 @@ GeneratorWatcher()
     }
 }
 
-GenControlProgress()
+GenControlProgress(current_round, generator_id)
 // Function to calculate progress for generators on hud
 {
-    while (1)
+    while (current_round == level.round_number)
     {
-        if (self.generator_id == 0)
+        if (generator_id == 0)
         {
             level.hud_current = 0;
 
@@ -1493,27 +1504,27 @@ GenControlProgress()
         }    
         else
         {
-            if (self.generator_id == 1 && level.active_gen_1)
+            if (generator_id == 1 && level.active_gen_1)
             {
                 level.hud_current = 1;
             }
-            else if (self.generator_id == 2 && level.active_gen_2)
+            else if (generator_id == 2 && level.active_gen_2)
             {
                 level.hud_current = 1;
             }
-            else if (self.generator_id == 3 && level.active_gen_3)
+            else if (generator_id == 3 && level.active_gen_3)
             {
                 level.hud_current = 1;
             }
-            else if (self.generator_id == 4 && level.active_gen_4)
+            else if (generator_id == 4 && level.active_gen_4)
             {
                 level.hud_current = 1;
             }
-            else if (self.generator_id == 5 && level.active_gen_5)
+            else if (generator_id == 5 && level.active_gen_5)
             {
                 level.hud_current = 1;
             }
-            else if (self.generator_id == 6 && level.active_gen_6)
+            else if (generator_id == 6 && level.active_gen_6)
             {
                 level.hud_current = 1;
             }
@@ -1534,14 +1545,9 @@ WatchPlayerStat(challenge, stat_1, goal_solo, goal_coop, stat_sum, sum_range_dow
     level endon("start_of_round");
 
     // Hardcode values for rounds
-    level.relative_var = 0;
     if (challenge == 6)
     {
-        level.relative_var = (level.players.size + " piles");
-        if (level.players.size == 1)
-        {
-            level.relative_var = (level.players.size + " pile");
-        }
+        level.relative_var = level.players.size;
     }
     else if (challenge == 7)
     {

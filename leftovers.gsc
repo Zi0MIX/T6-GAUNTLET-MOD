@@ -621,6 +621,19 @@ PullRoundZombies()
     }
 }
 
+GauntletHudAfteraction()
+// Function changes the color of challenge hud after the round is over
+{
+    if (level.conditions_met)
+    {
+        return (0.4, 0.7, 1);
+    }
+    else
+    {
+        return (1, 0.7, 0.4);
+    }
+}
+
 // full_ammo_powerup_override(drop_item, player)
 // // Override, notify level if max is obtained
 // {
