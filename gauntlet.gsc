@@ -25,6 +25,8 @@
 #include maps/mp/zombies/_zm_magicbox;
 #include maps/mp/zombies/_zm_score;
 #include maps/mp/zombies/_zm_powerups;
+#include maps/mp/zombies/_zm_equipment;
+#include maps/mp/zombies/_zm_melee_weapon;
 #include maps/mp/zombies/_zm;
 
 main()
@@ -61,13 +63,12 @@ OnPlayerConnect()
 
 	level waittill("initial_players_connected");
     level thread SetDvars();
-    // level thread DevDebug("raygun_mark2_upgraded_zm", 9);   // For debugging
+    level thread DevDebug("innit", 29);   // For debugging
 
     flag_wait("initial_blackscreen_passed");
 
     level thread TimerHud();
     level thread ZombieCounterHudNew();
-    level thread NetworkFrameHud();
     level thread GauntletHud();
     level thread ProgressHud();
     level thread BetaHud(9);
@@ -519,9 +520,25 @@ DevDebug(weapon, round)
     {
         foreach (player in level.players)
         {
-            player giveWeapon(weapon);
-            player switchtoweapon(weapon);
-            player givestartammo(weapon);
+            if (weapon == "innit")
+            {
+                player takeweapon("c96_zm");
+                wait 0.1;
+                player giveweapon_nzv("staff_water_upgraded_zm");
+                player giveWeapon("raygun_mark2_upgraded_zm");
+                player givestartammo("raygun_mark2_upgraded_zm");
+                player switchtoweapon("staff_water_upgraded_zm");
+            }
+            else if (issubstr(weapon, "staff_"))
+            {
+                player giveweapon_nzv(weapon);
+            }
+            else
+            {
+                player giveWeapon(weapon);
+                player switchtoweapon(weapon);
+                player givestartammo(weapon);
+            }
             player.score = 50005;
         }
     }
@@ -3922,25 +3939,29 @@ ValueAmmo(challenge)
     }
 }
 
-ClearStaffs()
-// Function zeroes ammo for staffs for the duration of the round
+ClearStaffs(current_round)
+// Function takes staff away from the player if he has it
 {
-    staff_array = array("staff_air_upgraded_zm", "staff_fire_upgraded_zm", "staff_lightning_upgraded_zm", "staff_water_upgraded_zm");
-    while (1)
+    while (current_round == level.round_number)
     {
-        foreach (player in level.players)
+        weapon_array = self getWeaponsListPrimaries();
+        if (isinarray(weapon_array, "staff_air_upgraded_zm"))
         {
-            current_weapon = player getCurrentWeapon();
-            if (isinarray(staff_array, current_weapon))
-            {
-                if ((player getAmmoCount(current_weapon) != 0) || (player getWeaponAmmoClip(current_weapon) != 0))
-                {
-                    self setweaponammoclip(weapon, 0);
-                    self setweaponammostock(weapon, 0);  
-                }          
-            }
+            self takeweapon("staff_air_upgraded_zm");
         }
-        wait 0.05;
+        else if (isinarray(weapon_array, "staff_fire_upgraded_zm"))
+        {
+            self takeweapon("staff_fire_upgraded_zm");
+        }        
+        else if (isinarray(weapon_array, "staff_lightning_upgraded_zm"))
+        {
+            self takeweapon("staff_lightning_upgraded_zm");
+        }     
+        else if (isinarray(weapon_array, "staff_water_upgraded_zm"))
+        {
+            self takeweapon("staff_water_upgraded_zm");
+        }  
+        wait 0.5;
     }
 }
 
@@ -3950,11 +3971,16 @@ GrandFinale(challenge)
     level endon ("end_game");
 
     level.second_chance = false;
+    current_round = level.round_number;
 
     self thread CheckForZone(challenge, array("ug_bottom_zone"), 60);
-    self thread ClearStaffs();
     self thread TooManyPanzers(challenge, true);
+    foreach (player in level.players)
+    {
+        player thread ClearStaffs(current_round);
+    }
 
+    level waittill("end_of_round");
 }
 
 recapture_round_tracker_override()
@@ -4075,4 +4101,356 @@ wait_network_frame_override()
 // Override, fixed tickrate
 {
 	wait 0.1; 							
+}
+
+giveweapon_nzv( weapon )
+// Forked from strat tester
+{
+	if( issubstr( weapon, "tomahawk_zm" ) && level.script == "zm_prison" )
+	{
+		self play_sound_on_ent( "purchase" );
+		self notify( "tomahawk_picked_up" );
+		level notify( "bouncing_tomahawk_zm_aquired" );
+		self notify( "player_obtained_tomahawk" );
+		if( weapon == "bouncing_tomahawk_zm" )
+		{
+			self.tomahawk_upgrade_kills = 0;
+			self.killed_with_only_tomahawk = 1;
+			self.killed_something_thq = 0;
+		}
+		else
+		{
+			self.tomahawk_upgrade_kills = 99;
+			self.killed_with_only_tomahawk = 1;
+			self.killed_something_thq = 1;
+			self notify( "tomahawk_upgraded_swap" );
+		}
+		old_tactical = self get_player_tactical_grenade();
+		if( old_tactical != "none" && IsDefined( old_tactical ) )
+		{
+			self takeweapon( old_tactical );
+		}
+		self set_player_tactical_grenade( weapon );
+		self.current_tomahawk_weapon = weapon;
+		gun = self getcurrentweapon();
+		self disable_player_move_states( 1 );
+		self giveweapon( "zombie_tomahawk_flourish" );
+		self switchtoweapon( "zombie_tomahawk_flourish" );
+		self waittill_any( "player_downed", "weapon_change_complete" );
+		self switchtoweapon( gun );
+		self enable_player_move_states();
+		self takeweapon( "zombie_tomahawk_flourish" );
+		self giveweapon( weapon );
+		self givemaxammo( weapon );
+		if( !(is_equipment( gun ))is_equipment( gun ) && !(is_placeable_mine( gun )) )
+		{
+			self switchtoweapon( gun );
+			self waittill( "weapon_change_complete" );
+		}
+		else
+		{
+			primaryweapons = self getweaponslistprimaries();
+			if( primaryweapons.size > 0 && IsDefined( primaryweapons ) )
+			{
+				self switchtoweapon( primaryweapons[ 0] );
+				self waittill( "weapon_change_complete" );
+			}
+		}
+		self play_weapon_vo( weapon );
+	}
+	else
+	{
+		if( weapon == "willy_pete_zm" && level.script == "zm_prison" )
+		{
+			self play_sound_on_ent( "purchase" );
+			gun = self getcurrentweapon();
+			old_tactical = self get_player_tactical_grenade();
+			if( old_tactical != "none" && IsDefined( old_tactical ) )
+			{
+				self takeweapon( old_tactical );
+			}
+			self set_player_tactical_grenade( weapon );
+			self giveweapon( weapon );
+			self givemaxammo( weapon );
+			if( !(is_equipment( gun ))is_equipment( gun ) && !(is_placeable_mine( gun )) )
+			{
+				self switchtoweapon( gun );
+				self waittill( "weapon_change_complete" );
+			}
+			else
+			{
+				primaryweapons = self getweaponslistprimaries();
+				if( primaryweapons.size > 0 && IsDefined( primaryweapons ) )
+				{
+					self switchtoweapon( primaryweapons[ 0] );
+					self waittill( "weapon_change_complete" );
+				}
+			}
+			self play_weapon_vo( weapon );
+		}
+		else
+		{
+			if( weapon == "time_bomb_zm" && level.script == "zm_buried" )
+			{
+				self weapon_give( weapon, undefined, undefined, 0 );
+			}
+			else
+			{
+				if( issubstr( weapon, "one_inch_punch" ) && level.script == "zm_tomb" )
+				{
+					self play_sound_on_ent( "purchase" );
+					gun = self getcurrentweapon();
+					self disable_player_move_states( 1 );
+					if( weapon == "one_inch_punch_zm" )
+					{
+						self.b_punch_upgraded = 0;
+						self giveweapon( "zombie_one_inch_punch_flourish" );
+						self switchtoweapon( "zombie_one_inch_punch_flourish" );
+					}
+					else
+					{
+						self.b_punch_upgraded = 1;
+						if( weapon == "one_inch_punch_air_zm" )
+						{
+							self.str_punch_element = "air";
+						}
+						else
+						{
+							if( weapon == "one_inch_punch_fire_zm" )
+							{
+								self.str_punch_element = "fire";
+							}
+							else
+							{
+								if( weapon == "one_inch_punch_ice_zm" )
+								{
+									self.str_punch_element = "ice";
+								}
+								else
+								{
+									if( weapon == "one_inch_punch_lightning_zm" )
+									{
+										self.str_punch_element = "lightning";
+									}
+									else
+									{
+										if( weapon == "one_inch_punch_upgraded_zm" )
+										{
+											self.str_punch_element = "upgraded";
+										}
+									}
+								}
+							}
+						}
+						self giveweapon( "zombie_one_inch_punch_upgrade_flourish" );
+						self switchtoweapon( "zombie_one_inch_punch_upgrade_flourish" );
+					}
+					self waittill_any( "player_downed", "weapon_change_complete" );
+					self enable_player_move_states();
+					if( weapon == "one_inch_punch_zm" )
+					{
+						self takeweapon( "zombie_one_inch_punch_flourish" );
+					}
+					else
+					{
+						self takeweapon( "zombie_one_inch_punch_upgrade_flourish" );
+					}
+					gun = self change_melee_weapon( weapon, gun );
+					self giveweapon( weapon );
+					if( !(is_equipment( gun ))is_equipment( gun ) && !(is_placeable_mine( gun )) )
+					{
+						self switchtoweapon( gun );
+						self waittill( "weapon_change_complete" );
+					}
+					else
+					{
+						primaryweapons = self getweaponslistprimaries();
+						if( primaryweapons.size > 0 && IsDefined( primaryweapons ) )
+						{
+							self switchtoweapon( primaryweapons[ 0] );
+							self waittill( "weapon_change_complete" );
+						}
+					}
+					// self thread create_and_play_dialog( "perk", "one_inch" );
+				}
+				else
+				{
+					if( issubstr( weapon, "_melee_zm" ) && issubstr( weapon, "staff_" ) && level.script == "zm_tomb" )
+					{
+						self play_sound_on_ent( "purchase" );
+						gun = self getcurrentweapon();
+						gun = self change_melee_weapon( weapon, gun );
+						self giveweapon( weapon );
+						if( !(is_equipment( gun ))is_equipment( gun ) && !(is_placeable_mine( gun )) )
+						{
+							self switchtoweapon( gun );
+							self waittill( "weapon_change_complete" );
+						}
+						else
+						{
+							primaryweapons = self getweaponslistprimaries();
+							if( primaryweapons.size > 0 && IsDefined( primaryweapons ) )
+							{
+								self switchtoweapon( primaryweapons[ 0] );
+								self waittill( "weapon_change_complete" );
+							}
+						}
+						self play_weapon_vo( weapon );
+					}
+					else
+					{
+						if( issubstr( weapon, "staff_" ) && level.script == "zm_tomb" )
+						{
+							if( issubstr( weapon, "_upgraded_zm" ) )
+							{
+								if( !(self hasweapon( "staff_revive_zm" )) )
+								{
+									self setactionslot( 3, "weapon", "staff_revive_zm" );
+									self giveweapon( "staff_revive_zm" );
+								}
+								self givemaxammo( "staff_revive_zm" );
+							}
+							else
+							{
+								if( self hasweapon( "staff_revive_zm" ) )
+								{
+									self takeweapon( "staff_revive_zm" );
+									self setactionslot( 3, "altmode" );
+								}
+							}
+							self weapon_give( weapon, undefined, undefined, 0 );
+						}
+						else
+						{
+							if( issubstr( weapon, "equip_dieseldrone_zm" ) && level.script == "zm_tomb" )
+							{
+								if( IsDefined( level.zombie_custom_equipment_setup ) )
+								{
+									players = getplayers();
+									i = 0;
+									while( i < players.size )
+									{
+										if( players[ i] hasweapon( weapon ) )
+										{
+											// self stealth_iprintln( "^1ERROR: ^7Diesel Drone is already equiped by one player" );
+										}
+										i++;
+									}
+									quadrotor = getentarray( "quadrotor_ai", "targetname" );
+									if( quadrotor.size >= 1 )
+									{
+										// self stealth_iprintln( "^1ERROR: ^7Diesel Drone is already active, can't spawn another yet" );
+									}
+									// customequipgiver = spawn( "script_model", self normalisedtrace( "position" ) );
+									// customequipgiver setmodel( "veh_t6_dlc_zm_quadrotor" );
+									// customequipgiver.stub = spawnstruct();
+									// customequipgiver.stub.weaponname = "equip_dieseldrone_zm";
+									// customequipgiver.stub.craftablestub = spawnstruct();
+									// customequipgiver.stub.craftablestub.use_actionslot = 2;
+									// customequipgiver [[  ]]( self );
+									// customequipgiver delete();
+								}
+							}
+							else
+							{
+								if( self is_melee_weapon( weapon ) )
+								{
+									if( weapon == "bowie_knife_zm" || weapon == "tazer_knuckles_zm" )
+									{
+										// self give_melee_weapon_by_name( weapon );
+                                        self give_melee_weapon_instant( weapon );
+									}
+									else
+									{
+										self play_sound_on_ent( "purchase" );
+										gun = self getcurrentweapon();
+										gun = self change_melee_weapon( weapon, gun );
+										self giveweapon( weapon );
+										if( !(is_equipment( gun ))is_equipment( gun ) && !(is_placeable_mine( gun )) )
+										{
+											self switchtoweapon( gun );
+											self waittill( "weapon_change_complete" );
+										}
+										else
+										{
+											primaryweapons = self getweaponslistprimaries();
+											if( primaryweapons.size > 0 && IsDefined( primaryweapons ) )
+											{
+												self switchtoweapon( primaryweapons[ 0] );
+												self waittill( "weapon_change_complete" );
+											}
+										}
+										self play_weapon_vo( weapon );
+									}
+								}
+								else
+								{
+									if( self is_equipment( weapon ) )
+									{
+										self play_sound_on_ent( "purchase" );
+										if( level.destructible_equipment.size > 0 && IsDefined( level.destructible_equipment ) )
+										{
+											i = 0;
+											while( i < level.destructible_equipment.size )
+											{
+												equip = level.destructible_equipment[ i];
+												if( equip.name == weapon && IsDefined( equip.name ) && equip.owner == self && IsDefined( equip.owner ) )
+												{
+													// equip item_damage( 9999 );
+													break;
+												}
+												else
+												{
+													if( equip.name == weapon && IsDefined( equip.name ) && weapon == "jetgun_zm" )
+													{
+														// equip item_damage( 9999 );
+														break;
+													}
+													else
+													{
+														i++;
+													}
+												}
+												i++;
+											}
+										}
+										self equipment_take( weapon );
+										self equipment_buy( weapon );
+										self play_weapon_vo( weapon );
+									}
+									else
+									{
+										if( self is_weapon_upgraded( weapon ) )
+										{
+											self weapon_give( weapon, 1, undefined, 0 );
+										}
+										else
+										{
+											self weapon_give( weapon, undefined, undefined, 0 );
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+	// self stealth_iprintln( "Weapon: " + ( weapon + " ^2Given" ) );
+}
+
+give_melee_weapon_instant( weapon_name )
+{
+	self giveweapon( weapon_name );
+	gun = change_melee_weapon( weapon_name, "knife_zm" );
+	if ( self hasweapon( "knife_zm" ) )
+	{
+		self takeweapon( "knife_zm" );
+	}
+    gun = self getcurrentweapon();
+	if ( gun != "none" && !is_placeable_mine( gun ) && !is_equipment( gun ) )
+	{
+		self switchtoweapon( gun );
+	}
 }
