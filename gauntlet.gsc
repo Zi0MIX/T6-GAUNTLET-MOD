@@ -36,6 +36,7 @@ main()
 	replaceFunc(maps/mp/zombies/_zm_utility::wait_network_frame, ::wait_network_frame_override);    
     replaceFunc(maps/mp/zm_tomb_capture_zones::recapture_round_tracker, ::recapture_round_tracker_override);
     replaceFunc(maps/mp/zombies/_zm_powerups::powerup_drop, ::powerup_drop_override);
+    replaceFunc(maps/mp/zombies/_zm_magicbox::treasure_chest_chooseweightedrandomweapon, ::treasure_chest_chooseweightedrandomweapon_override);
 }
 
 init()
@@ -63,7 +64,7 @@ OnPlayerConnect()
 
 	level waittill("initial_players_connected");
     level thread SetDvars();
-    level thread DevDebug("innit", 6);   // For debugging
+    level thread DevDebug("innit", 5);   // For debugging
 
     flag_wait("initial_blackscreen_passed");
 
@@ -305,7 +306,9 @@ SetDvars()
     self thread LevelDvarsWatcher();
     level.player_too_many_weapons_monitor = 0;
     level.second_chance = true;
+    level.monkers = false;
     level.callbackactorkilled = ::actor_killed_override; // Pointer
+    level.special_weapon_magicbox_check = ::gauntlet_special_weapon_magicbox_check; // Pointer
     // level.player_too_many_weapons_monitor_func = ::player_too_many_weapons_monitor_override;
 
     level.weapon_used = undefined;
@@ -977,8 +980,8 @@ ProgressHudSet(mode, text)
     {
         if (isdefined(level.debug_weapons) && level.debug_weapons)
         {
-            print("set_mode: " + mode);
-            print("set_text: " + text);
+            // print("set_mode: " + mode);
+            // print("set_text: " + text);
         }
 
         if (mode == "counter")
@@ -1666,7 +1669,7 @@ WatchPlayerStat(challenge, stat_1, goal_solo, goal_coop, stat_sum, sum_range_dow
 
             if (isdefined(level.debug_weapons) && level.debug_weapons)
             { 
-                print("temp_stat: " + player.name + ": " + temp_stat);
+                // print("temp_stat: " + player.name + ": " + temp_stat);
             }
         }
 
@@ -4113,6 +4116,48 @@ wait_network_frame_override()
 	wait 0.1; 							
 }
 
+gauntlet_special_weapon_magicbox_check(weapon)
+// Override, remove lower chance for mk2, remove mk2 on round 5
+{
+    if ( weapon == "ray_gun_zm" )
+    {
+        if ( self has_weapon_or_upgrade( "raygun_mark2_zm" ) )
+        {
+            return 0;
+        }
+    }
+    if ( weapon == "raygun_mark2_zm" )
+    {
+        if ( self has_weapon_or_upgrade( "ray_gun_zm" ) )
+        {
+            return 0;
+        }
+        if ( level.round_number == 5 )
+        {
+            return 0;
+        }
+	}
+	if ( weapon == "beacon_zm" )
+	{
+		if ( isDefined( self.beacon_ready ) && self.beacon_ready )
+		{
+			return 1;
+		}
+		else
+		{
+			return 0;
+		}
+	}
+	if ( isDefined( level.zombie_weapons[ weapon ].shared_ammo_weapon ) )
+	{
+		if ( self has_weapon_or_upgrade( level.zombie_weapons[ weapon ].shared_ammo_weapon ) )
+		{
+			return 0;
+		}
+	}
+	return 1;
+}
+
 giveweapon_nzv( weapon )
 // Forked from strat tester
 {
@@ -4463,4 +4508,47 @@ give_melee_weapon_instant( weapon_name )
 	{
 		self switchtoweapon( gun );
 	}
+}
+
+treasure_chest_chooseweightedrandomweapon_override(player)
+// Override, add 50% chance for monkeys on r5
+{
+    if (isdefined(level.debug_weapons) && level.debug_weapons)
+    {
+        if (level.round_number == 5)
+        {
+            print("monkers: " + level.monkers);
+        }
+    }
+
+    keys = array_randomize(getarraykeys(level.zombie_weapons));
+
+    if (isdefined( level.customrandomweaponweights))
+    {
+        keys = player [[level.customrandomweaponweights]](keys);
+    }
+
+    pap_triggers = getentarray("specialty_weapupgrade", "script_noteworthy");
+
+    chance = cointoss();
+
+    if (level.round_number == 5 && cointoss() && treasure_chest_canplayerreceiveweapon(player, "cymbal_monkey_zm", pap_triggers) && !level.monkers)
+    {
+        if (isdefined(level.debug_weapons) && level.debug_weapons)
+        {
+            iPrintLn("toss_a_coin");
+        }
+        level.monkers = true;
+        return "cymbal_monkey_zm";
+    }
+
+    for ( i = 0; i < keys.size; i++ )
+    {
+        if (treasure_chest_canplayerreceiveweapon(player, keys[i], pap_triggers))
+        {
+            return keys[i];
+        }
+    }
+
+    return keys[0];
 }

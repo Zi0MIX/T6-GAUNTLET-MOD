@@ -52,6 +52,9 @@ Weather is predefined for rounds 6-12
 - Round 9 - Rain
 - Round 10 - Snow
 - Round 11 & 12 - Clear
+### Box
+- MK2 cannot be obtained on round 5, but chance of getting it on other rounds is equal to other weapons
+- Monkeys will have 50% chance of appearing in the box on round 5 until first appearance
 
 # Misc:
 - Kill with X weapon & Don't buy anything
@@ -66,4 +69,4 @@ Game checks the position of the player, not zombies
 - Round 28
 Significantly increased chance of drop + removed drop cap
 - Round 30
-Ammo for upgraded staffs is taken away
+Staffs are taken away
