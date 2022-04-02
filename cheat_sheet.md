@@ -40,6 +40,8 @@ Challenges that you can fail by doing or not doing something particular. Other c
 # Optimizations for 5-8p lobbies:
 - Round 21
 Amount of perks reduced to 4
+- Round 26
+Amount of zombies to kill don't scale beyond 4th player
 
 # Game rules:
 - Panzer rounds: 8, 12, 16, 20, 24, 28, 30

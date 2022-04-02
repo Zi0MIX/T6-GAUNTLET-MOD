@@ -3803,9 +3803,14 @@ TankEm(challenge)
     tank_multiplier = 0;
     if (level.players.size > 1)
     {
-        tank_multiplier = 24 * (level.players.size - 1);
+        tank_multiplier = 24 * level.players.size;
     }
-    zombies_to_tank = 48 + tank_multiplier;
+    zombies_to_tank = 24 + tank_multiplier;
+    // Pluto adjustment
+    if (zombies_to_tank > 120)
+    {
+        zombies_to_tank = 120;
+    }
 
     self thread CheckUsedWeapon(challenge);
     current_round = level.round_number;
