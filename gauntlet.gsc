@@ -661,7 +661,11 @@ ZombieCounterHudNew()
             current_zombz = get_round_enemy_array().size + level.zombie_total;
         }
 
-        if (level.round_number >= 10 && current_zombz <= 12)
+        if (current_zombz == 0)
+        {
+            counter_hud.label = &"ZOMBIES: ^1";
+        }
+        else if (level.round_number >= 10 && current_zombz <= 12)
         {
             counter_hud.label = &"ZOMBIES: ^3";
         }
