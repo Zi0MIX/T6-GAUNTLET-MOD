@@ -63,7 +63,7 @@ OnPlayerConnect()
 
 	level waittill("initial_players_connected");
     level thread SetDvars();
-    level thread DevDebug("innit", 29);   // For debugging
+    level thread DevDebug("innit", 30);   // For debugging
 
     flag_wait("initial_blackscreen_passed");
 
@@ -875,6 +875,7 @@ ProgressHud()
         current_round = level.round_number;
         self.progress_hud.color = (1, 0.7, 0.4);                 // Orange
 
+        // Set mode
         if (isinarray(mode_counter, current_round))
         {
             mode = "counter";
@@ -883,60 +884,59 @@ ProgressHud()
         {
             mode = "zone";
         }
-        else
+
+        // Set custom text
+        if (current_round == 2)
         {
-            if (current_round == 2)
-            {
-                text = "MELEE WEAPONS";
-            }
-            else if (current_round == 3)
-            {
-                text = "CAN'T MOVE";
-            }
-            else if (current_round == 9 || current_round == 19)
-            {
-                text = "MP-40";
-            }
-            else if (current_round == 10)
-            {
-                text = "CAN'T JUMP";
-            }
-            else if (current_round == 12)
-            {
-                text = "YET TO UPGRADE";
-            }
-            else if (current_round == 13)
-            {
-                text = "POINTS";
-            }
-            else if (current_round == 20)
-            {
-                text = "CHURCH";
-            }
-            else if (current_round == 23)
-            {
-                text = "HEALTH";
-            }
-            else if (current_round == 24)
-            {
-                text = "FIRST ROOM WEAPONS";
-            }
-            else if (current_round == 27)
-            {
-                text = "INDOORS";
-            }
-            else if (current_round == 28)
-            {
-                text = "POWERUPS";
-            }
-            else if (current_round == 29)
-            {
-                text = "ONE SHOT = TWO BULLETS";
-            }
-            else if (current_round == 30)
-            {
-                text = "STAFF CHAMBER";
-            }
+            text = "MELEE WEAPONS";
+        }
+        else if (current_round == 3)
+        {
+            text = "CAN'T MOVE";
+        }
+        else if (current_round == 9 || current_round == 19)
+        {
+            text = "MP-40";
+        }
+        else if (current_round == 10)
+        {
+            text = "CAN'T JUMP";
+        }
+        else if (current_round == 12)
+        {
+            text = "YET TO UPGRADE";
+        }
+        else if (current_round == 13)
+        {
+            text = "POINTS";
+        }
+        else if (current_round == 20)
+        {
+            text = "CHURCH";
+        }
+        else if (current_round == 23)
+        {
+            text = "HEALTH";
+        }
+        else if (current_round == 24)
+        {
+            text = "FIRST ROOM WEAPONS";
+        }
+        else if (current_round == 27)
+        {
+            text = "INDOORS";
+        }
+        else if (current_round == 28)
+        {
+            text = "POWERUPS";
+        }
+        else if (current_round == 29)
+        {
+            text = "ONE SHOT = TWO BULLETS";
+        }
+        else if (current_round == 30)
+        {
+            text = "STAFF CHAMBER";
         }
 
         if (!isdefined(text))
@@ -975,6 +975,12 @@ ProgressHudSet(mode, text)
     
     while (1)
     {
+        if (isdefined(level.debug_weapons) && level.debug_weapons)
+        {
+            print("set_mode: " + mode);
+            print("set_text: " + text);
+        }
+
         if (mode == "counter")
         {
             if (level.conditions_met)
