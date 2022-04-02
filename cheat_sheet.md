@@ -47,13 +47,17 @@ Amount of zombies to kill don't scale beyond 4th player
 - Panzer rounds: 8, 12, 16, 20, 24, 28, 30
 - Generator rounds: 10, 14, 18, 23, 26
 ### Weather
-Weather is predefined for rounds 6-12
+Weather is predefined for rounds 5-17
 - Round 5 - Rain
 - Round 6 & 7 - Snow
 - Round 8 - Clear
 - Round 9 - Rain
 - Round 10 - Snow
 - Round 11 & 12 - Clear
+- Round 13 - Rain
+- Round 14 & 15 - Snow
+- Round 16 & 17 - Rain
+
 ### Box
 - MK2 cannot be obtained on round 5, but chance of getting it on other rounds is equal to other weapons
 - Monkeys will have 50% chance of appearing in the box on round 5 until first appearance

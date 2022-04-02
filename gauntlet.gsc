@@ -8,10 +8,10 @@
 #include maps/mp/animscripts/zm_utility;
 #include maps/mp/zm_tomb;
 #include maps/mp/zm_tomb_utility;
-// New
 #include maps/mp/zm_tomb_capture_zones;
 #include maps/mp/zm_tomb_tank;
 #include maps/mp/zm_tomb_utility;
+#include maps/mp/zm_tomb_dig;
 #include maps/mp/gametypes_zm/_tweakables;
 #include maps/mp/gametypes_zm/_shellshock;
 #include maps/mp/gametypes_zm/_weapons;
@@ -64,7 +64,7 @@ OnPlayerConnect()
 
 	level waittill("initial_players_connected");
     level thread SetDvars();
-    level thread DevDebug("innit", 5);   // For debugging
+    // level thread DevDebug("innit", 5);   // For debugging
 
     flag_wait("initial_blackscreen_passed");
 
@@ -72,7 +72,7 @@ OnPlayerConnect()
     level thread ZombieCounterHudNew();
     level thread GauntletHud();
     level thread ProgressHud();
-    level thread BetaHud(9);
+    level thread BetaHud(10);
 
     level thread EndGameWatcher();
     level thread GameRules();
@@ -570,6 +570,11 @@ GameRules()
         // level.force_weather[10] = "snow"; // Already predefined init_weather_manager()
         level.force_weather[11] = "clear";
         level.force_weather[12] = "clear";
+        level.force_weather[13] = "rain";
+        level.force_weather[14] = "snow";
+        level.force_weather[15] = "snow";
+        level.force_weather[16] = "rain";
+        level.force_weather[17] = "rain";
 
         if (level.round_number == 8)
         {
