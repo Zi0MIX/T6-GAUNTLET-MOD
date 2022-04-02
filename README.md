@@ -1,39 +1,24 @@
-# Bo2OriginsGauntlet
-Patch that emulates gauntlet gamemode from BO4 on BO2 Origins
+# Gauntlet
+This mod is a port of BO4 side game-mode "Gauntlet". It consist of 30 rounds during which players have to complete 30 different challenges. The goal is to complete all challenges as fast as possible.
 
-# Challenge list (beta):
-1. Activate generator 1.
-2. Kill only with melee attacks.
-3. Stand still.
-4. Own a perk at the end of the round.
-5. Pull a weapon from the mystery box.
-6. Dig up total amount of piles equal to players in game.
-7. Solo - Kill 6 zombies with melee attacks / Coop - Kill 12 zombies total with melee attacks.
-8. Own Jugger-Nog by the end of the round.
-9. Only kill with MP-40.
-10. No jumping.
-11. Don't buy anything.
-12. Upgrade a staff.
-13. Move or lose points.
-14. Survive round with super-sprinters.
-15. Activate all generators.
-16. Survive round with panzers.
-17. Dig up total of 7 piles.
-18. Time is faster.
-19. Only kill with MP-40.
-20. Protect church.
-21. Own five perks at the end of the round.
-22. All perks are offline.
-23. Move of get hurt.
-24. Only kill with First Room guns.
-25. Survive with randomized loadout.
-26. Kill 48 (+24 for each player) zombies with the tank
-27. Only kill zombies indoors.
-28. Don't pick up any drops.
-29. You use twice as much ammo.
-30. Protect staff chamber
+# Compatibility
+This mod is created for Plutonium. Core functions may work on Redacted, but some game rules won't be applied due to use of custom Plutonium functions.
 
-# Known issues
-- Workbench in air tunnel is "outside"
-- You win screen doesn't work with 2 HUD elements
-- Couning hud fucks up
+# Competitive side
+Some kind of leaderboards will be present on release, either website or spreadsheet.
+
+# Rules
+- Fast Ray (macro & bind) is <b>ALLOWED</b>.
+- Use of any other patches alongside Gauntlet is <b>NOT ALLOWED</B>.
+- It is required to have full video proof of the game to get on leaderboards.
+- Only the in-game timer will be honored.
+- Games from beta releases won't count.
+
+# 5-8 players
+Mod should work with lobbies up to 8 players (even has some challenge optimizations for it), but it's recommended to play up to 4p games.
+
+# Optimizing the game
+Check out [cheat sheet](../blob/main/cheat_sheet) for detailed info and full list of challenges if you do not wish to discover everything yourself or if you want to speedrun.
+
+# Credits
+This mod wouldn't have been created if not for the help from [5and5](https://github.com/5and5), [Txchno](https://github.com/mbahgatTech/) & [JezuzLizard](https://github.com/JezuzLizard/)
