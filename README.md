@@ -18,7 +18,7 @@ Some kind of leaderboards will be present on release, either website or spreadsh
 Mod should work with lobbies up to 8 players (even has some challenge optimizations for it), but it's recommended to play up to 4p games.
 
 # Optimizing the game
-Check out [cheat sheet](../blob/main/cheat_sheet) for detailed info and full list of challenges if you do not wish to discover everything yourself or if you want to speedrun.
+Check out [cheat sheet](../main/cheat_sheet.md) for detailed info and full list of challenges if you do not wish to discover everything yourself or if you want to speedrun.
 
 # Credits
 This mod wouldn't have been created if not for the help from [5and5](https://github.com/5and5), [Txchno](https://github.com/mbahgatTech/) & [JezuzLizard](https://github.com/JezuzLizard/)
