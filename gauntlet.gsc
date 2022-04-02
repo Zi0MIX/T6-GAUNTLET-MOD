@@ -63,7 +63,7 @@ OnPlayerConnect()
 
 	level waittill("initial_players_connected");
     level thread SetDvars();
-    level thread DevDebug("innit", 30);   // For debugging
+    level thread DevDebug("innit", 6);   // For debugging
 
     flag_wait("initial_blackscreen_passed");
 
@@ -649,7 +649,7 @@ ZombieCounterHudNew()
     counter_hud setPoint("CENTER", "CENTER", "CENTER", 185);
 	counter_hud.alpha = 1;
     counter_hud.hidewheninmenu = 1;  
-    counter_hud.label = &"ZOMBIES: ^5";
+    counter_hud.label = &"ZOMBIES: ^1";
     counter_hud setValue(0); 
 
 	level waittill("start_of_round");
