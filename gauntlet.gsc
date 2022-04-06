@@ -3345,7 +3345,7 @@ SprintWatcher(challenge, mode)
         foreach (player in level.players)
         {
             // Observe if players move or not
-            if (player.player_is_moving == 0)
+            if (player.player_is_moving == 0 && !player player_is_in_laststand())
             {
                 player.isnt_moving++;
             }
