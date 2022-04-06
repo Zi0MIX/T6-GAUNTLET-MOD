@@ -64,7 +64,7 @@ OnPlayerConnect()
 
 	level waittill("initial_players_connected");
     level thread SetDvars();
-    // level thread DevDebug("innit", 5);   // For debugging
+    level thread DevDebug("c96_upgraded_zm");   // For debugging
 
     flag_wait("initial_blackscreen_passed");
 
@@ -192,7 +192,7 @@ OnPlayerConnect()
         // Timescale
         else if (level.round_number == 18)
         {
-            level thread SetDvarForRound(18, "timescale", 1.6, 1);
+            level thread SetTimescale(18);
         }
 
         // Only kill with mp40
@@ -2339,7 +2339,13 @@ CheckUsedWeapon(challenge)
                     pass_insta = true;
                     foreach (player in level.players)
                     {
-                        if (player.clientid == level.killer_name)
+                        if (isdefined(level.debug_weapons) && level.debug_weapons)
+                        {
+                            player iPrintLn("clientid: " + player.name);
+                            player iPrintLn("killer_name: " + level.killer_name);
+                        }
+ 
+                        if (player.name == level.killer_name)
                         {
                             held_weapon = player getCurrentWeapon();
                             if (!isinarray(allowed_weapons, held_weapon))
@@ -2877,25 +2883,29 @@ PanzerDeathWatcher(is_supporting)
     }
 }
 
-SetDvarForRound(challenge, dvar, start_value, end_value)
-// Function sets a dvar to one value and changes it to another at the end of round
+SetTimescale(challenge)
+// Function sets timescale till the end of round
 {
     level endon("end_game");
     level endon("start_of_round");
 
-    if (!isdefined(start_value))
-    {
-        start_value = 0;
-    }
-    if (!isdefined(end_value))
-    {
-        end_value = 1;
-    }
-
     ConditionsInProgress(true);
-    setdvar(dvar, start_value);
+    new_timescale = 1.65;
+    if (level.players.size < 4)
+    {
+        new_timescale = 1.75;
+        if (level.players.size < 3)
+        {
+            new_timescale = 1.85;
+            if (level.players.size == 1)
+            {
+                new_timescale = 1.95;
+            }                 
+        }    
+    }
+    setdvar("timescale", new_timescale);
     level waittill ("end_of_round");
-    setdvar(dvar, end_value);
+    setdvar("timescale", 1);
     ConditionsMet(true);
 }
 
