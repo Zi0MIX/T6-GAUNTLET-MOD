@@ -68,7 +68,7 @@ Function is stopped for 2 seconds after challenge appears to prevent instant gam
 - Round 16
 Amount of panzers is randomized between 6 and 11
 - Round 18
-Time increase is 160%
+Time scale 195% solo / 185% coop / 175% 3p / 165% otherwise
 - Round 27
 Workbench room in the wind tunnel counts as outside :(
 Game checks the position of the player, not zombies
